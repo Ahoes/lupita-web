@@ -314,7 +314,7 @@ function pintarCompra() {
 $('f-compra').addEventListener('submit', async (e) => {
   e.preventDefault();
   const inp = $('c-texto'), texto = inp.value;
-  const textos = texto.split(/[,\n]/).map((t) => t.trim()).filter(Boolean);
+  const textos = texto.split(/[,\n]/).map((t) => L.mayuscula(t.trim())).filter(Boolean);
   if (!textos.length) return;
   const lista = $('c-lista').value;
   inp.value = '';
@@ -360,7 +360,7 @@ function pintarTareas() {
 
 $('f-tarea').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const inp = $('t-texto'), texto = inp.value.trim();
+  const inp = $('t-texto'), texto = L.mayuscula(inp.value.trim());
   if (!texto) return;
   const fila = { hogar_id: S.hogar.id, texto, para: $('t-para').value || null, fecha: $('t-fecha').value || null };
   inp.value = ''; $('t-fecha').value = '';
@@ -432,7 +432,7 @@ $('cal-hoy').addEventListener('click', () => elegirDia(L.hoyISO()));
 
 $('f-evento').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const inp = $('e-titulo'), titulo = inp.value.trim();
+  const inp = $('e-titulo'), titulo = L.mayuscula(inp.value.trim());
   if (!titulo) return;
   const fila = { hogar_id: S.hogar.id, titulo, fecha: S.dia, hora: $('e-hora').value || null };
   inp.value = ''; $('e-hora').value = '';

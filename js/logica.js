@@ -1,11 +1,14 @@
 // Lupita · fechas, orden y avisos. Sin acceso al DOM, para poder probarlo con Node.
-export const VERSION = '0.2.1';
+export const VERSION = '0.2.2';
 export const LISTAS = ['Súper', 'Farmacia', 'Casa', 'Otros'];
 const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 export const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
   'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 const dos = (n) => String(n).padStart(2, '0');
+
+// Primera letra en mayúscula ("leche" → "Leche"); el resto se deja como lo escribieron
+export const mayuscula = (t) => t.charAt(0).toLocaleUpperCase('es') + t.slice(1);
 
 // ===== Fechas (siempre 'AAAA-MM-DD' en hora local) =====
 export const aISO = (d) => `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}`;
