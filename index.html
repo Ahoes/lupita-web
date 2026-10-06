@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lupita</title>
+<meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111715" media="(prefers-color-scheme: dark)">
+<meta name="description" content="La lista de la compra, las tareas y el calendario, compartidos en familia.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Lupita">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="app">
+
+<!-- ===== Cargando ===== -->
+<section id="v-cargando" class="vista on">
+  <p class="centro mut" id="cargando-txt">Cargando…</p>
+</section>
+
+<!-- ===== Falta configurar ===== -->
+<section id="v-config" class="vista">
+  <div class="bienvenida"><img src="icons/icon-192.png" alt="" width="72" height="72"><h1>Lupita</h1></div>
+  <div class="tarjeta">
+    <h2>Falta conectar con Supabase</h2>
+    <p class="mut">Pega la dirección y la clave pública de Supabase en <code>js/config.js</code>.</p>
+  </div>
+</section>
+
+<!-- ===== Entrar ===== -->
+<section id="v-login" class="vista">
+  <div class="bienvenida"><img src="icons/icon-192.png" alt="" width="72" height="72"><h1>Lupita</h1>
+    <p class="mut">La compra, las tareas y el calendario, compartidos.</p></div>
+  <form id="f-login" class="tarjeta">
+    <label class="campo"><span>Correo</span><input type="email" name="email" autocomplete="email" required></label>
+    <label class="campo"><span>Contraseña</span><input type="password" name="clave" autocomplete="current-password" minlength="6" required></label>
+    <p id="login-msg" class="msg" hidden></p>
+    <button class="btn" type="submit" value="entrar">Entrar</button>
+    <button class="btn sec" type="submit" value="registro">Crear cuenta nueva</button>
+  </form>
+</section>
+
+<!-- ===== Crear la casa o unirse ===== -->
+<section id="v-hogar" class="vista">
+  <div class="bienvenida peque"><h1>Un paso más</h1></div>
+  <div class="tarjeta">
+    <label class="campo"><span>¿Cómo te llamas?</span><input id="h-nombre" autocomplete="given-name" maxlength="30"></label>
+  </div>
+  <div class="tarjeta">
+    <h3>Soy la primera persona</h3>
+    <p class="mut">Crea vuestra casa y pásale el código a la otra persona.</p>
+    <button class="btn" type="button" id="h-crear">Crear nuestra casa</button>
+  </div>
+  <div class="tarjeta">
+    <h3>Ya tengo un código</h3>
+    <label class="campo"><span>Código de la casa</span><input id="h-codigo" maxlength="6" autocapitalize="characters" autocomplete="off" spellcheck="false"></label>
+    <button class="btn sec" type="button" id="h-unirse">Unirme</button>
+  </div>
+  <p id="hogar-msg" class="msg" hidden></p>
+  <button class="enlace" type="button" id="h-salir">Cerrar sesión</button>
+</section>
+
+<!-- ===== La app ===== -->
+<section id="v-app" class="vista">
+  <header class="top">
+    <div class="marca">
+      <h1>Lupita</h1>
+      <div class="acciones">
+        <button id="instalar" class="mini" type="button" hidden>Instalar</button>
+        <button id="b-ajustes" class="icono" type="button" aria-label="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+      </div>
+    </div>
+    <div id="aviso-perm" class="banda" hidden>
+      <span>¿Te aviso de lo que hay que comprar?</span>
+      <button id="b-perm" class="mini" type="button">Activar avisos</button>
+      <button id="b-perm-no" class="icono peque" type="button" aria-label="Ahora no">×</button>
+    </div>
+  </header>
+
+  <!-- Compra -->
+  <section id="t-compra" class="tab on">
+    <div id="hoy" class="hoy" hidden><h3>Para hoy</h3><ul id="hoy-lista"></ul></div>
+    <form id="f-compra" class="nuevo">
+      <input id="c-texto" placeholder="Añadir a la compra…" autocomplete="off" maxlength="200" enterkeyhint="done">
+      <button class="mas" type="submit" aria-label="Añadir">+</button>
+    </form>
+    <div class="opciones">
+      <label class="pastilla"><span>Lista</span><select id="c-lista"></select></label>
+    </div>
+    <p class="pista">Puedes añadir varias cosas a la vez separándolas con comas.</p>
+    <div class="chips" id="c-filtro"></div>
+    <ul id="c-pend" class="lista"></ul>
+    <p id="c-vacio" class="vacio" hidden>No falta nada por comprar.</p>
+    <details id="c-hechos" class="hechos" hidden>
+      <summary>Comprado (<span></span>)</summary>
+      <ul class="lista"></ul>
+      <button class="enlace" type="button" id="c-vaciar">Borrar lo comprado</button>
+    </details>
+  </section>
+
+  <!-- Tareas -->
+  <section id="t-tareas" class="tab">
+    <form id="f-tarea" class="nuevo">
+      <input id="t-texto" placeholder="Añadir una tarea…" autocomplete="off" maxlength="200" enterkeyhint="done">
+      <button class="mas" type="submit" aria-label="Añadir">+</button>
+    </form>
+    <div class="opciones">
+      <label class="pastilla"><span>Para</span><select id="t-para"></select></label>
+      <label class="pastilla"><span>Cuándo</span><input type="date" id="t-fecha"></label>
+    </div>
+    <ul id="t-pend" class="lista"></ul>
+    <p id="t-vacio" class="vacio" hidden>No hay tareas pendientes.</p>
+    <details id="t-hechas" class="hechos" hidden>
+      <summary>Hechas (<span></span>)</summary>
+      <ul class="lista"></ul>
+      <button class="enlace" type="button" id="t-vaciar">Borrar las hechas</button>
+    </details>
+  </section>
+
+  <!-- Calendario -->
+  <section id="t-cal" class="tab">
+    <div class="mes">
+      <button id="cal-ant" class="icono" type="button" aria-label="Mes anterior">‹</button>
+      <h2 id="cal-titulo"></h2>
+      <button id="cal-sig" class="icono" type="button" aria-label="Mes siguiente">›</button>
+    </div>
+    <div class="semana" aria-hidden="true"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+    <div id="cal-dias" class="dias"></div>
+    <button id="cal-hoy" class="enlace" type="button">Ir a hoy</button>
+    <h3 id="cal-dia-titulo" class="dia-titulo"></h3>
+    <ul id="cal-dia-lista" class="lista"></ul>
+    <p id="cal-dia-vacio" class="vacio" hidden>Nada apuntado este día.</p>
+    <form id="f-evento" class="tarjeta evento">
+      <input id="e-titulo" placeholder="Nueva cita o evento…" autocomplete="off" maxlength="200" required>
+      <div class="opciones">
+        <label class="pastilla"><span>Hora (opcional)</span><input type="time" id="e-hora"></label>
+      </div>
+      <button class="btn" type="submit" id="e-boton">Añadir</button>
+    </form>
+    <h3 class="dia-titulo">Próximos días</h3>
+    <ul id="cal-proximos" class="lista"></ul>
+    <p id="cal-prox-vacio" class="vacio" hidden>No hay nada en las próximas dos semanas.</p>
+  </section>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" type="button" data-t="compra" aria-selected="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.7 12.4a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.5L21 8H6"/></svg>
+      <span>Compra</span><b class="contador" id="n-compra" hidden></b></button>
+    <button role="tab" type="button" data-t="tareas" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <span>Tareas</span><b class="contador" id="n-tareas" hidden></b></button>
+    <button role="tab" type="button" data-t="cal" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      <span>Calendario</span><b class="contador" id="n-cal" hidden></b></button>
+  </nav>
+</section>
+</div>
+
+<!-- ===== Hojas ===== -->
+<div id="s-ajustes" class="hoja" hidden>
+  <div class="hoja-in" role="dialog" aria-modal="true" aria-labelledby="aj-titulo">
+    <div class="hoja-cab"><h2 id="aj-titulo">Ajustes</h2><button id="aj-cerrar" class="icono" type="button" aria-label="Cerrar">×</button></div>
+    <div id="aj-cont"></div>
+  </div>
+</div>
+
+<div id="s-instalar" class="hoja" hidden>
+  <div class="hoja-in" role="dialog" aria-modal="true" aria-labelledby="inst-titulo">
+    <h2 id="inst-titulo">Instalar en el móvil</h2>
+    <ol id="inst-pasos" class="pasos"></ol>
+    <button id="inst-ok" class="btn" type="button">Entendido</button>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script>
+  // Si en unos segundos no ha arrancado (por ejemplo, sin internet la primera vez), se explica
+  setTimeout(function () {
+    var v = document.getElementById('v-cargando');
+    if (v && v.classList.contains('on')) document.getElementById('cargando-txt').textContent = 'No se ha podido cargar. Comprueba la conexión y vuelve a abrir la app.';
+  }, 10000);
+</script>
+<script type="module" src="js/ui.js"></script>
+</body>
+</html>
