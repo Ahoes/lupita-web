@@ -50,10 +50,16 @@ async function arrancar() {
   if (!D.configurado) return vista('v-config');
   D.sb.auth.onAuthStateChange((evento) => {
     if (evento === 'SIGNED_OUT') { D.desuscribir(S.canal); S.canal = null; S.hogar = null; vista('v-login'); }
+    if (evento === 'PASSWORD_RECOVERY') vista('v-clave');
   });
   try {
     const { data } = await D.sb.auth.getSession();
+    if (D.enlaceCaducado) {
+      modoLogin('olvido');
+      mensaje('login-msg', 'El enlace ha caducado o ya se usó. Escribe tu correo y pide otro.');
+    }
     if (!data.session) return vista('v-login');
+    if (D.vieneDeRecuperar) return vista('v-clave');
     await entrarCon(data.session.user);
   } catch (err) { fallo(err); vista('v-login'); }
 }
@@ -78,14 +84,51 @@ async function cerrarSesion() {
   D.salir();
 }
 
+// La pantalla de entrar tiene tres modos: entrar, crear cuenta y recuperar la contraseña.
+// Recuperar está apagado hasta configurar el correo en Supabase (remitente propio y dirección autorizada).
+const RECUPERAR = false;
+let modo = 'entrar';
+function modoLogin(m) {
+  modo = m;
+  const f = $('f-login');
+  const textos = {
+    entrar: ['', 'Entrar', 'Crear cuenta nueva'],
+    registro: ['Crear cuenta', 'Crear cuenta', 'Ya tengo cuenta'],
+    olvido: ['Recuperar la contraseña', 'Enviar enlace', 'Volver'],
+  }[m];
+  $('login-titulo').textContent = textos[0];
+  $('login-titulo').hidden = !textos[0];
+  $('login-ok').textContent = textos[1];
+  $('login-cambiar').textContent = textos[2];
+  $('login-ayuda').hidden = m !== 'olvido';
+  $('login-olvido').hidden = !RECUPERAR || m !== 'entrar';
+  $('login-c1').hidden = m === 'olvido';
+  f.clave.required = m !== 'olvido';
+  f.clave.autocomplete = m === 'registro' ? 'new-password' : 'current-password';
+  $('login-c2').hidden = m !== 'registro';
+  f.clave2.required = m === 'registro';
+  f.clave2.value = '';
+  mensaje('login-msg', '');
+}
+$('login-cambiar').addEventListener('click', () => modoLogin(modo === 'entrar' ? 'registro' : 'entrar'));
+$('login-olvido').addEventListener('click', () => { modoLogin('olvido'); $('f-login').email.focus(); });
+
 $('f-login').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const f = e.target, accion = e.submitter?.value || 'entrar';
+  const f = e.target;
   const email = f.email.value.trim(), clave = f.clave.value;
   mensaje('login-msg', '');
+  if (modo === 'registro' && clave !== f.clave2.value) {
+    mensaje('login-msg', 'Las dos contraseñas no coinciden.');
+    f.clave2.focus();
+    return;
+  }
   f.querySelectorAll('button').forEach((b) => { b.disabled = true; });
   try {
-    if (accion === 'registro') {
+    if (modo === 'olvido') {
+      await D.pedirNuevaClave(email);
+      mensaje('login-msg', 'Si ese correo tiene cuenta, te llegará un enlace en unos minutos. Mira también en correo no deseado.', true);
+    } else if (modo === 'registro') {
       const r = await D.registrar(email, clave);
       if (!r.session) { mensaje('login-msg', 'Te hemos enviado un correo. Abre el enlace para confirmar la cuenta y después pulsa Entrar.', true); return; }
       await entrarCon(r.user);
@@ -98,6 +141,25 @@ $('f-login').addEventListener('submit', async (e) => {
   } finally {
     f.querySelectorAll('button').forEach((b) => { b.disabled = false; });
   }
+});
+
+// Al volver del enlace del correo: se pone la contraseña nueva y se entra
+$('f-clave').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  mensaje('clave-msg', '');
+  if (f.clave.value !== f.clave2.value) { mensaje('clave-msg', 'Las dos contraseñas no coinciden.'); f.clave2.focus(); return; }
+  const btn = f.querySelector('button');
+  btn.disabled = true;
+  try {
+    const r = await D.cambiarClave(f.clave.value);
+    f.reset();
+    history.replaceState(null, '', location.pathname);
+    toast('Contraseña cambiada');
+    await entrarCon(r.user);
+  } catch (err) {
+    mensaje('clave-msg', D.mensajeError(err));
+  } finally { btn.disabled = false; }
 });
 
 async function accionHogar(fn) {

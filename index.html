@@ -38,11 +38,27 @@
   <div class="bienvenida"><img src="icons/icon-192.png" alt="" width="72" height="72"><h1>Lupita</h1>
     <p class="mut">La compra, las tareas y el calendario, compartidos.</p></div>
   <form id="f-login" class="tarjeta">
+    <h2 id="login-titulo" hidden></h2>
+    <p id="login-ayuda" class="mut" hidden>Escribe tu correo y te mandamos un enlace para poner una contraseña nueva.</p>
     <label class="campo"><span>Correo</span><input type="email" name="email" autocomplete="email" required></label>
-    <label class="campo"><span>Contraseña</span><input type="password" name="clave" autocomplete="current-password" minlength="6" required></label>
+    <label class="campo" id="login-c1"><span>Contraseña</span><input type="password" name="clave" autocomplete="current-password" minlength="6" required></label>
+    <label class="campo" id="login-c2" hidden><span>Repite la contraseña</span><input type="password" name="clave2" autocomplete="new-password" minlength="6"></label>
     <p id="login-msg" class="msg" hidden></p>
-    <button class="btn" type="submit" value="entrar">Entrar</button>
-    <button class="btn sec" type="submit" value="registro">Crear cuenta nueva</button>
+    <button class="btn" type="submit" id="login-ok">Entrar</button>
+    <button class="btn sec" type="button" id="login-cambiar">Crear cuenta nueva</button>
+    <button class="enlace" type="button" id="login-olvido" hidden>¿Has olvidado la contraseña?</button>
+  </form>
+</section>
+
+<!-- ===== Contraseña nueva (al volver del enlace del correo) ===== -->
+<section id="v-clave" class="vista">
+  <div class="bienvenida"><img src="icons/icon-192.png" alt="" width="72" height="72"><h1>Lupita</h1></div>
+  <form id="f-clave" class="tarjeta">
+    <h2>Contraseña nueva</h2>
+    <label class="campo"><span>Contraseña nueva</span><input type="password" name="clave" autocomplete="new-password" minlength="6" required></label>
+    <label class="campo"><span>Repite la contraseña</span><input type="password" name="clave2" autocomplete="new-password" minlength="6" required></label>
+    <p id="clave-msg" class="msg" hidden></p>
+    <button class="btn" type="submit">Guardar y entrar</button>
   </form>
 </section>
 
