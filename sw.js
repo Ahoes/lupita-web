@@ -1,6 +1,6 @@
 // Lupita: funcionamiento sin conexión y avisos.
 // Al publicar una versión nueva, cambia el número de VERSION.
-const VERSION = 'lupita-v0.2-3';
+const VERSION = 'lupita-v0.2-4';
 const ARCHIVOS = ['./', './index.html', './manifest.webmanifest', './css/styles.css',
   './js/ui.js', './js/datos.js', './js/logica.js', './js/avisos.js', './js/pwa.js', './js/config.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png'];

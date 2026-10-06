@@ -119,6 +119,8 @@ nav.tabs button[aria-selected="true"]{color:var(--acc)}
 
 /* ===== Listas ===== */
 .lista{list-style:none;margin:0;padding:0}
+.grupo{font-size:13px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.4px;margin:14px 4px 6px}
+.grupo:first-child{margin-top:2px}
 .item{display:flex;align-items:center;gap:12px;background:var(--surf);border:1px solid var(--line);border-radius:14px;padding:8px 6px 8px 12px;margin-bottom:6px}
 .check{flex:none;width:28px;height:28px;border-radius:50%;border:2px solid var(--acc);background:transparent;padding:0;position:relative}
 .check[aria-pressed="true"]{background:var(--acc)}

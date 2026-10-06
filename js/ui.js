@@ -299,8 +299,13 @@ function pintarCompra() {
   $('c-filtro').hidden = $('c-filtro').children.length <= 2;
 
   const enFiltro = (c) => S.filtro === 'Todas' || c.lista === S.filtro;
-  const lista = L.ordenarPendientes(pend.filter(enFiltro), 'fecha_limite');
-  $('c-pend').replaceChildren(...lista.map((c) => itemCompra(c, S.filtro === 'Todas')));
+  const lista = pend.filter(enFiltro);
+  // Agrupado por categorías (fruta, panadería, congelados...); el título solo si hay más de un grupo
+  const grupos = L.agruparCompra(lista);
+  $('c-pend').replaceChildren(...grupos.flatMap((g) => [
+    grupos.length > 1 ? el('li', { class: 'grupo' }, `${g.icono} ${g.nombre}`) : null,
+    ...g.items.map((c) => itemCompra(c, S.filtro === 'Todas')),
+  ]).filter(Boolean));
   $('c-vacio').hidden = lista.length > 0;
 
   const hechos = S.compra.filter((c) => c.hecho && enFiltro(c))
