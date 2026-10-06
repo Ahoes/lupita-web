@@ -49,7 +49,7 @@ const deOtro = (fila) => fila.creado_por && fila.creado_por !== S.yo;
 async function arrancar() {
   if (!D.configurado) return vista('v-config');
   D.sb.auth.onAuthStateChange((evento) => {
-    if (evento === 'SIGNED_OUT') { D.desuscribir(S.canal); S.canal = null; S.hogar = null; vista('v-login'); }
+    if (evento === 'SIGNED_OUT') { D.desuscribir(S.canal); S.canal = null; S.hogar = null; modoLogin('entrar'); vista('v-login'); }
     if (evento === 'PASSWORD_RECOVERY') vista('v-clave');
   });
   try {
@@ -316,30 +316,35 @@ function meta(...partes) {
   return m;
 }
 
-// ----- Compra -----
+// ----- Confirmar antes de marcar (compra y tareas) -----
 // Para no marcar algo sin querer, al tocar el círculo se pregunta antes (y se cancela solo a los 5 s)
 let confirmarT;
-function pedirConfirmar(c) {
-  S.confirmando = c.id;
+const claveConfirmar = (tipo, fila) => `${tipo}:${fila.id}`;
+const confirmando = (tipo, fila) => !fila.hecho && S.confirmando === claveConfirmar(tipo, fila);
+function pedirConfirmar(tipo, fila) {
+  const clave = claveConfirmar(tipo, fila);
+  S.confirmando = clave;
   pintar();
   clearTimeout(confirmarT);
-  confirmarT = setTimeout(() => { if (S.confirmando === c.id) { S.confirmando = null; pintar(); } }, 5000);
+  confirmarT = setTimeout(() => { if (S.confirmando === clave) { S.confirmando = null; pintar(); } }, 5000);
+}
+function filaConfirmar(tipo, fila, pregunta, textoSi) {
+  return el('li', { class: 'item confirmar' },
+    el('div', { class: 'cuerpo' }, el('span', { class: 'txt' }, fila.texto), el('span', { class: 'meta' }, pregunta)),
+    el('button', { type: 'button', class: 'mini no', onclick: () => { S.confirmando = null; pintar(); } }, 'No'),
+    el('button', { type: 'button', class: 'mini si', onclick: () => {
+      S.confirmando = null;
+      cambiar(tipo, fila, { hecho: true, hecho_en: new Date().toISOString() });
+    } }, textoSi));
 }
 
+// ----- Compra -----
 function itemCompra(c, conLista = true) {
   const hoy = L.hoyISO();
-  if (!c.hecho && S.confirmando === c.id) {
-    return el('li', { class: 'item confirmar' },
-      el('div', { class: 'cuerpo' }, el('span', { class: 'txt' }, c.texto), el('span', { class: 'meta' }, '¿Ya está comprado?')),
-      el('button', { type: 'button', class: 'mini no', onclick: () => { S.confirmando = null; pintar(); } }, 'No'),
-      el('button', { type: 'button', class: 'mini si', onclick: () => {
-        S.confirmando = null;
-        cambiar('compra', c, { hecho: true, hecho_en: new Date().toISOString() });
-      } }, 'Sí, comprado'));
-  }
+  if (confirmando('compra', c)) return filaConfirmar('compra', c, '¿Ya está comprado?', 'Sí, comprado');
   return el('li', { class: `item${c.hecho ? ' hecho' : ''}` },
     check(c.hecho, c.hecho ? 'Volver a la lista' : 'Marcar como comprado',
-      () => (c.hecho ? cambiar('compra', c, { hecho: false, hecho_en: null }) : pedirConfirmar(c))),
+      () => (c.hecho ? cambiar('compra', c, { hecho: false, hecho_en: null }) : pedirConfirmar('compra', c))),
     el('div', { class: 'cuerpo' }, el('span', { class: 'txt' }, c.texto),
       meta(conLista && c.lista, !c.hecho && c.fecha_limite && plazo(c.fecha_limite, hoy), deOtro(c) && nombreDe(c.creado_por))),
     borrarBtn('Borrar', () => quitar('compra', c, `«${c.texto}» borrado`)));
@@ -401,9 +406,10 @@ $('c-vaciar').addEventListener('click', () => {
 function itemTarea(t) {
   const hoy = L.hoyISO();
   const para = t.para ? (t.para === S.yo ? 'Para ti' : `Para ${nombreDe(t.para)}`) : null;
+  if (confirmando('tareas', t)) return filaConfirmar('tareas', t, '¿Ya está hecha?', 'Sí, hecha');
   return el('li', { class: `item${t.hecho ? ' hecho' : ''}` },
     check(t.hecho, t.hecho ? 'Marcar como pendiente' : 'Marcar como hecha',
-      () => cambiar('tareas', t, { hecho: !t.hecho, hecho_en: t.hecho ? null : new Date().toISOString() })),
+      () => (t.hecho ? cambiar('tareas', t, { hecho: false, hecho_en: null }) : pedirConfirmar('tareas', t))),
     el('div', { class: 'cuerpo' }, el('span', { class: 'txt' }, t.texto),
       meta(!t.hecho && t.fecha && plazo(t.fecha, hoy), para, deOtro(t) && `Añadida por ${nombreDe(t.creado_por)}`)),
     borrarBtn('Borrar', () => quitar('tareas', t, `«${t.texto}» borrada`)));
