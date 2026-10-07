@@ -1,5 +1,5 @@
 // Lupita · fechas, orden y avisos. Sin acceso al DOM, para poder probarlo con Node.
-export const VERSION = '0.2.5';
+export const VERSION = '0.2.6';
 export const LISTAS = ['Súper', 'Farmacia', 'Casa', 'Otros'];
 const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 export const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
@@ -7,8 +7,60 @@ export const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'ju
 
 const dos = (n) => String(n).padStart(2, '0');
 
-// Primera letra en mayúscula y el resto en minúscula ("LECHE entera" → "Leche entera")
-export const mayuscula = (t) => t.charAt(0).toLocaleUpperCase('es') + t.slice(1).toLocaleLowerCase('es');
+// ===== Mayúsculas =====
+// Nombres propios que se escriben siempre con mayúscula. Los que llevan "~" también son palabras normales
+// ("rosa", "clara", "julio"): solo se ponen en mayúscula detrás de "de", "a", "para"... ("ramo para rosa").
+const NOMBRES = `Antonio José Manuel Francisco Juan David Javier Daniel Carlos Jesús Alejandro Miguel Rafael Pedro
+  Pablo Ángel Sergio Fernando Jorge Luis Alberto Álvaro Adrián Diego Raúl Enrique Ramón Vicente Iván Rubén Óscar
+  Andrés Joaquín Santiago Eduardo Víctor Roberto Jaime Mario Ignacio Alfonso Marcos Hugo Jordi Ricardo Gabriel
+  Emilio Gonzalo Martín ~Tomás Agustín Nicolás Rodrigo Lucas Mateo Marc Iker Aitor Unai Asier Gorka Xavier Héctor
+  Samuel Cristian Christian Félix Gregorio Lorenzo Esteban Arturo Felipe Guillermo Ismael Bruno Thiago Izan Álex
+  ~Marco Eric Nil Pol Biel Oliver César Julián Fabián Sebastián Simón Germán Rodolfo Benito Ernesto Mariano Valentín
+  Pepe Paco Manolo Toni Quique Kike Chema Rafa Fran Dani Javi Edu Nando Juanma Txema Iñaki Íñigo Mikel Xabier
+  Lucía María Carmen Ana Isabel Laura Cristina Marta Sara Paula Elena Raquel Beatriz Patricia Silvia Julia Irene
+  Alicia Andrea Sonia Mónica Nuria Natalia Claudia Eva Inmaculada Inma Teresa Lorena Verónica Susana Marina Noelia
+  Esther Yolanda Ángela Montserrat Montse Rocío Encarnación Encarna Josefa Francisca Manuela Antonia Concepción
+  ~Concha Lourdes Begoña Ainhoa Nerea Leire Itziar Miren Aitana Carla Daniela Valeria Martina Sofía Noa Emma Olivia
+  Jimena Ximena Carlota Adriana Celia Lidia Miriam Rebeca Belén ~Gema Gemma Vanesa Tamara Judith Ariadna Fátima
+  Ángeles Natividad Asunción Purificación Trinidad Lola Pepa Charo Isa Bea Cris Mamen Maite Marisa Mari Juani Rosi
+  Puri Encarni Loli Nati Vero Patri Sandra Rosana Iratxe Nekane Elisa Eugenia Inés Sandra Rut Ruth Noemí Yaiza
+  Mercadona Lidl Carrefour Ikea Amazon Alcampo Eroski Hipercor ~Correos Zara Decathlon Primark Movistar Vodafone
+  Iberdrola Endesa Naturgy Netflix Google
+  ~Rosa ~Pilar ~Luz ~Paz ~Sol ~Blanca ~Nieves ~Mar ~Clara ~Victoria ~Gloria ~Esperanza ~Amparo ~Consuelo
+  ~Mercedes ~Dolores ~Remedios ~Soledad ~Milagros ~Aurora ~Estrella ~Margarita ~Violeta ~Iris ~Alba ~Vega
+  ~Paloma ~Rosario ~Julio ~Leo ~Nacho ~Salvador ~Pastor ~Cruz ~Angustias`;
+// Detrás de estas palabras, lo dudoso se toma como nombre
+const ANTES_DE_NOMBRE = new Set('a al de del para con y e o u por sin'.split(' '));
+// Palabras de enlace que van en minúscula aunque se escriban con mayúscula ("pan De molde")
+const ENLACES = new Set('a al de del el la los las lo un una y e o u en con para por sin que'.split(' '));
+const sinTildes = (t) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const PROPIOS = new Map(NOMBRES.split(/\s+/).filter(Boolean).map((n) => {
+  const forma = n.replace('~', '');
+  return [sinTildes(forma), { forma, dudoso: n.startsWith('~') }];
+}));
+
+// Primera letra en mayúscula y el resto en minúscula ("LECHE entera" → "Leche entera"), salvo los nombres
+// propios: los conocidos, los de la casa (`nombres`) y los que se escriban ya con mayúscula
+// ("lavadora de cesar" → "Lavadora de César")
+export function mayuscula(t, nombres = []) {
+  const propios = new Map(PROPIOS);
+  for (const n of nombres) {
+    for (const w of String(n || '').split(/\s+/).filter(Boolean)) {
+      propios.set(sinTildes(w), { forma: w.charAt(0).toLocaleUpperCase('es') + w.slice(1).toLocaleLowerCase('es'), dudoso: false });
+    }
+  }
+  const todoMayusculas = t === t.toLocaleUpperCase('es');
+  let anterior = '';
+  const r = t.replace(/\p{L}+/gu, (w, i) => {
+    const minus = w.toLocaleLowerCase('es'), clave = sinTildes(w), antes = anterior;
+    anterior = clave;
+    const p = propios.get(clave);
+    if (p && (!p.dudoso || ANTES_DE_NOMBRE.has(antes))) return p.forma;
+    if (i > 0 && !todoMayusculas && /^\p{Lu}\p{Ll}+$/u.test(w) && !ENLACES.has(clave)) return w;
+    return minus;
+  });
+  return r.charAt(0).toLocaleUpperCase('es') + r.slice(1);
+}
 
 // ===== Fechas (siempre 'AAAA-MM-DD' en hora local) =====
 export const aISO = (d) => `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}`;
@@ -74,85 +126,113 @@ export function ordenarPendientes(items, campo) {
 
 // ===== Categorías de la compra =====
 // En el orden de un recorrido normal por el súper. Las palabras van sin tildes y en singular.
+// Las que llevan "~" son dudosas ("cápsulas" puede ser de café o de detergente, "gel" de ducha o de
+// lavadora): solo deciden si en el texto no hay ninguna palabra clara.
 export const CATEGORIAS = [
   ['Fruta y verdura', '🍎', `fruta verdura manzana platano pera naranja mandarina limon lima uva fresa freson
-    melon sandia kiwi pina mango aguacate melocoton nectarina albaricoque cereza ciruela granada higo papaya
-    frambuesa arandano mora coco caqui chirimoya tomate lechuga cebolla cebolleta ajo patata zanahoria pimiento
-    pepino calabacin berenjena brocoli coliflor col repollo espinaca acelga judia guisante haba alcachofa
-    esparrago puerro apio calabaza champinon seta rucula canonigo endivia rabano remolacha jengibre perejil
-    cilantro albahaca hierbabuena boniato batata maiz ensalada brote`],
-  ['Panadería', '🥖', `pan barra baguette chapata hogaza molde bimbo integral picos pico colin regana tostada biscote
-    croissant cruasan bolleria bollo magdalena napolitana ensaimada donut dona palmera bizcocho tarta pastel
-    empanada empanadilla wrap pita`],
-  ['Carne', '🥩', `carne pollo pechuga muslo contramuslo alita ternera cerdo lomo solomillo costilla chuleta filete
-    entrecot cordero conejo pavo hamburguesa salchicha albondiga picada carrillera secreto presa panceta
-    torrezno codillo higado morcilla`],
+    melon sandia kiwi pina mango aguacate melocoton nectarina albaricoque paraguayo cereza ciruela granada higo
+    papaya frambuesa arandano mora ~coco caqui chirimoya tomate lechuga cebolla cebolleta cebollino ajo patata
+    zanahoria pimiento pepino calabacin berenjena brocoli coliflor col repollo lombarda espinaca acelga judia
+    guisante haba alcachofa esparrago puerro apio calabaza champinon seta rucula canonigo endivia endibia
+    escarola rabano remolacha nabo jengibre perejil cilantro albahaca hierbabuena menta boniato batata maiz
+    ensalada brote kale`],
+  ['Panadería', '🥖', `pan ~barra baguette chapata hogaza ~molde bimbo picos pico colin regana tostada biscote
+    croissant cruasan bolleria bollo magdalena napolitana ensaimada donut dona donette palmera bizcocho tarta
+    pastel empanada empanadilla wrap pita brioche`],
+  ['Carne', '🥩', `carne pollo pechuga muslo contramuslo alita ternera cerdo lomo solomillo costilla chuleta
+    filete entrecot cordero conejo pavo hamburguesa burger salchicha albondiga picada carrillera secreto presa
+    panceta torrezno codillo higado morcilla butifarra longaniza chistorra pinchito`],
   ['Pescado', '🐟', `pescado merluza salmon atun bacalao dorada lubina sardina boqueron trucha rape lenguado
     gallo caballa bonito emperador calamar sepia pulpo gamba langostino mejillon almeja berberecho navaja
-    marisco surimi palito chipiron`],
-  ['Charcutería y quesos', '🧀', `jamon york serrano iberico chorizo salchichon fuet lomo embutido mortadela
+    marisco surimi ~palito chipiron`],
+  ['Charcutería y quesos', '🧀', `jamon york serrano iberico chorizo salchichon fuet embutido mortadela
     salami bacon beicon sobrasada pate queso quesito mozzarella parmesano burrata fiambre cecina`],
-  ['Lácteos y huevos', '🥛', `leche yogur yogurt natilla flan cuajada kefir nata mantequilla margarina
-    batido huevo huevos requeson`],
-  ['Despensa', '🥫', `arroz pasta macarron espagueti spaghetti fideo tallarin lasana raviolis tortellini cuscus
-    quinoa garbanzo lenteja alubia legumbre harina levadura azucar sal pimienta oregano comino pimenton
-    canela curry especia caldo avecrem aceite vinagre mayonesa ketchup mostaza salsa tomate frito
-    conserva lata aceituna pepinillo maiz atun mejillones berberechos sardinillas pure sopa crema nuez nueces
-    almendra cacahuete pistacho anacardo avellana pipa fruto seco pasa datil miel`],
-  ['Desayuno y dulces', '🍪', `cereal cereales muesli avena galleta cafe capsula descafeinado te infusion
-    manzanilla poleo cacao colacao nesquik chocolate chocolatina mermelada confitura crema cacao nocilla
-    nutella turron golosina chuche caramelo chicle patatilla snack palomita gominola`],
-  ['Bebidas', '🥤', `agua zumo refresco cocacola coca cola fanta sprite aquarius nestea gaseosa tonica cerveza
-    vino tinto blanco rosado cava champan sidra vermut ron ginebra whisky licor bebida isotonica`],
-  ['Congelados', '🧊', `congelado congelada helado hielo pizza croqueta varita nugget san jacobo lasana precocinado`],
-  ['Limpieza', '🧽', `detergente suavizante lejia amoniaco friegasuelos limpiador lavavajillas fairy estropajo
-    bayeta fregona escoba recogedor bolsa basura papel cocina servilleta aluminio albal film insecticida
-    ambientador limpiacristales quitagrasas vitro sanitario wc guante`],
-  ['Higiene y farmacia', '🧴', `champu gel jabon desodorante colonia perfume crema dental dientes cepillo
-    enjuague hilo compresa tampon salvaslip panal toallita algodon bastoncillo maquinilla cuchilla espuma
-    afeitar protector solar labial pintalabios maquillaje rimel colutorio papel higienico
-    paracetamol ibuprofeno aspirina tirita venda gasa betadine alcohol termometro vitamina jarabe
-    pomada suero antiestaminico medicina medicamento receta preservativo condon`],
-  ['Mascotas', '🐾', `pienso perro gato arena comida mascota`],
+  ['Lácteos y huevos', '🥛', `~leche yogur yogurt natilla flan cuajada kefir nata mantequilla margarina
+    batido huevo requeson actimel activia danone danonino danacol bifidus skyr petit`],
+  ['Despensa', '🥫', `arroz ~pasta macarron espagueti spaghetti fideo tallarin lasana ravioli tortellini cuscus
+    quinoa garbanzo lenteja alubia legumbre harina maicena levadura azucar ~sal pimienta oregano comino pimenton
+    canela curry especia caldo avecrem aceite ~vinagre mayonesa ketchup mostaza salsa ~frito conserva ~lata
+    aceituna alcaparra pepinillo encurtido sardinilla pure sopa gazpacho salmorejo nuez almendra cacahuete
+    pistacho anacardo avellana pipa ~seco pasa datil miel semilla sesamo chia nacho taco tortita`],
+  ['Desayuno y dulces', '🍪', `cereal muesli avena galleta cafe ~capsula descafeinado te infusion manzanilla
+    poleo cacao colacao nesquik nescafe nespresso tassimo marcilla saimaza chocolate chocolatina bombon mermelada
+    confitura nocilla nutella turron golosina chuche caramelo chicle patatilla snack palomita gominola barrita
+    oreo principe filipino lacasito conguito sugus haribo kinder milka toblerone pringles dorito cheeto ruffles
+    gusanito`],
+  ['Bebidas', '🥤', `~agua zumo refresco cocacola coca cola pepsi fanta sprite aquarius nestea kas schweppes
+    gaseosa tonica mosto horchata cerveza vino ~tinto ~blanco ~rosado cava champan sidra vermut ron ginebra gin
+    vodka tequila whisky licor bebida isotonica redbull monster`],
+  ['Congelados', '🧊', `congelado congelada helado hielo pizza croqueta varita nugget jacobo precocinado`],
+  ['Limpieza', '🧽', `detergente suavizante lejia amoniaco friegasuelos fregasuelos limpiador limpieza limpiar
+    lavavajillas fairy estropajo bayeta fregona mopa escoba recogedor cubo trapo gamuza ~bolsa basura cocina
+    servilleta aluminio albal film insecticida ambientador limpiacristales cristal quitagrasas multiusos
+    desinfectante desatascador antical abrillantador quitamancha vitro sanitario wc guante ropa lavadora colada
+    pinza tendedero pod ariel skip dixan wipp persil micolor norit perlan mimosin vernel vanish neutrex kh7
+    sanytol mistol finish somat asevi vileda colon percha`],
+  ['Higiene y farmacia', '🧴', `champu ~gel ducha ~jabon desodorante colonia perfume ~crema dental dentifrico
+    dientes cepillo enjuague colutorio ~hilo compresa tampon salvaslip panal toallita algodon bastoncillo
+    maquinilla cuchilla ~espuma afeitar protector solar labial labio pintalabios maquillaje rimel desmaquillante
+    micelar corporal hidratante mascarilla tinte laca gomina peine coletero lentilla ~papel higienico ~pastilla
+    paracetamol ibuprofeno aspirina tirita venda gasa betadine alcohol termometro vitamina jarabe pomada suero
+    antihistaminico medicina medicamento receta preservativo condon dodot colgate sensodyne nivea dove sanex
+    pantene gillette ausonia evax tampax isdin mustela panuelo kleenex clinex`],
+  ['Mascotas', '🐾', `pienso perro gato mascota ~arena arenero rascador whiskas friskies purina pedigree`],
 ];
 const OTROS = ['Otros', '📦'];
 
-// Frases que mandan sobre las palabras sueltas ("tomate frito" no es verdura)
-const FRASES = [
-  ['tomate frito', 'Despensa'], ['tomate triturado', 'Despensa'], ['pan rallado', 'Despensa'],
-  ['pan de molde', 'Panadería'], ['papel higienico', 'Higiene y farmacia'], ['papel de cocina', 'Limpieza'],
-  ['papel cocina', 'Limpieza'], ['papel de aluminio', 'Limpieza'], ['papel film', 'Limpieza'],
-  ['bolsa de basura', 'Limpieza'], ['bolsas de basura', 'Limpieza'], ['crema de cacao', 'Desayuno y dulces'],
-  ['pasta de dientes', 'Higiene y farmacia'], ['pasta dental', 'Higiene y farmacia'],
-  ['pastillas lavavajillas', 'Limpieza'], ['pastillas de lavavajillas', 'Limpieza'],
-  ['comida de perro', 'Mascotas'], ['comida de gato', 'Mascotas'], ['comida perro', 'Mascotas'],
-  ['comida gato', 'Mascotas'], ['arena gato', 'Mascotas'], ['arena de gato', 'Mascotas'],
-  ['crema solar', 'Higiene y farmacia'], ['crema hidratante', 'Higiene y farmacia'],
-  ['crema de manos', 'Higiene y farmacia'], ['atun en lata', 'Despensa'], ['atun lata', 'Despensa'],
-  ['frutos secos', 'Despensa'], ['patatas fritas', 'Desayuno y dulces'], ['patatas chips', 'Desayuno y dulces'],
-  ['queso rallado', 'Charcutería y quesos'], ['leche condensada', 'Despensa'],
+// Palabras que mandan sobre todo lo demás: "champú para perro" es de mascotas, "jabón para la ropa" de limpieza
+const MANDAN = [
+  [/ congelad/, 'Congelados'],
+  [/ (perr[oa]s?|gat[oa]s?|mascotas?|piensos?) /, 'Mascotas'],
+  [/ (ropa|lavadoras?|colada) /, 'Limpieza'],
 ];
 
+// Frases que mandan sobre las palabras sueltas ("tomate frito" no es verdura). Valen en singular o plural.
+const FRASES = [
+  ['tomate frito', 'Despensa'], ['tomate triturado', 'Despensa'], ['tomate natural', 'Despensa'],
+  ['pan rallado', 'Despensa'], ['pan de molde', 'Panadería'], ['papel de cocina', 'Limpieza'],
+  ['papel cocina', 'Limpieza'], ['papel de aluminio', 'Limpieza'], ['papel film', 'Limpieza'],
+  ['papel de horno', 'Limpieza'], ['papel vegetal', 'Limpieza'], ['bolsa de basura', 'Limpieza'],
+  ['crema de cacao', 'Desayuno y dulces'], ['pasta de diente', 'Higiene y farmacia'], ['pasta dental', 'Higiene y farmacia'],
+  ['crema de verdura', 'Despensa'], ['crema de calabacin', 'Despensa'], ['crema de calabaza', 'Despensa'],
+  ['crema de marisco', 'Despensa'], ['crema de champinon', 'Despensa'], ['crema de puerro', 'Despensa'],
+  ['atun en lata', 'Despensa'], ['atun lata', 'Despensa'], ['lata de atun', 'Despensa'], ['en aceite', 'Despensa'],
+  ['agua oxigenada', 'Higiene y farmacia'], ['fruto seco', 'Despensa'],
+  ['patata frita', 'Desayuno y dulces'], ['patata chip', 'Desayuno y dulces'], ['queso rallado', 'Charcutería y quesos'],
+  ['leche condensada', 'Despensa'], ['leche de coco', 'Despensa'], ['leche evaporada', 'Despensa'],
+  ['leche de avena', 'Lácteos y huevos'], ['leche de almendra', 'Lácteos y huevos'], ['leche de soja', 'Lácteos y huevos'],
+  ['leche de arroz', 'Lácteos y huevos'], ['bebida de avena', 'Lácteos y huevos'], ['bebida de soja', 'Lácteos y huevos'],
+  ['bebida de almendra', 'Lácteos y huevos'], ['cola cao', 'Desayuno y dulces'], ['dolce gusto', 'Desayuno y dulces'],
+  ['don limpio', 'Limpieza'], ['cillit bang', 'Limpieza'], ['pato wc', 'Limpieza'], ['agua destilada', 'Limpieza'],
+  ['agua de plancha', 'Limpieza'], ['sal lavavajilla', 'Limpieza'], ['lima de una', 'Higiene y farmacia'],
+  ['palito de merluza', 'Congelados'], ['cera depilatoria', 'Higiene y farmacia'], ['oral b', 'Higiene y farmacia'],
+  ['head shoulder', 'Higiene y farmacia'], ['font vella', 'Bebidas'], ['red bull', 'Bebidas'],
+  ['royal canin', 'Mascotas'], ['san jacobo', 'Congelados'], ['nata para cocinar', 'Lácteos y huevos'],
+].map(([frase, cat]) => [new RegExp(` ${frase.split(' ').map((w) => `${w}(?:e?s)?`).join(' ')} `), cat]);
+
 const normalizar = (t) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-// Para cada palabra, la primera categoría en la que aparece
+// Para cada palabra, la primera categoría en la que aparece y si es dudosa
 const PALABRAS = new Map();
 for (const [nombre, , lista] of CATEGORIAS) {
-  for (const p of lista.split(/\s+/).filter(Boolean)) if (!PALABRAS.has(p)) PALABRAS.set(p, nombre);
+  for (const p of lista.split(/\s+/).filter(Boolean)) {
+    const palabra = p.replace('~', '');
+    if (!PALABRAS.has(palabra)) PALABRAS.set(palabra, { cat: nombre, dudosa: p.startsWith('~') });
+  }
 }
 // Palabras que en el súper tienen dueño claro aunque estén en otra lista
-for (const [p, c] of [['atun', 'Pescado'], ['lomo', 'Carne'], ['maiz', 'Fruta y verdura'], ['tomate', 'Fruta y verdura']]) PALABRAS.set(p, c);
+for (const [p, c] of [['atun', 'Pescado'], ['lomo', 'Carne'], ['maiz', 'Fruta y verdura'], ['tomate', 'Fruta y verdura']]) PALABRAS.set(p, { cat: c, dudosa: false });
 
 const singular = (w) => [w, w.replace(/es$/, ''), w.replace(/s$/, '')];
+const buscar = (w) => singular(w).map((s) => PALABRAS.get(s)).find(Boolean);
 
-// "manzanas" → "Fruta y verdura"; lo que no reconoce va a "Otros"
+// "manzanas" → "Fruta y verdura"; "cápsulas de detergente" → "Limpieza" (manda la palabra clara);
+// lo que no reconoce va a "Otros"
 export function categoria(texto) {
-  const t = ' ' + normalizar(texto).replace(/[^a-z0-9ñ ]+/g, ' ').replace(/\s+/g, ' ') + ' ';
-  if (/ congelad/.test(t)) return 'Congelados';
-  for (const [frase, cat] of FRASES) if (t.includes(` ${frase} `)) return cat;
-  for (const w of t.trim().split(' ')) {
-    for (const s of singular(w)) if (PALABRAS.has(s)) return PALABRAS.get(s);
-  }
-  return OTROS[0];
+  const t = ' ' + normalizar(texto).replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ') + ' ';
+  for (const [re, cat] of MANDAN) if (re.test(t)) return cat;
+  for (const [re, cat] of FRASES) if (re.test(t)) return cat;
+  const halladas = t.trim().split(' ').map(buscar).filter(Boolean);
+  return (halladas.find((h) => !h.dudosa) || halladas[0] || { cat: OTROS[0] }).cat;
 }
 
 export const iconoCategoria = (nombre) => (CATEGORIAS.find((c) => c[0] === nombre) || OTROS)[1];

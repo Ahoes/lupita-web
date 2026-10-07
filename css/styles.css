@@ -185,6 +185,11 @@ form.evento > input:focus{border-color:var(--acc);outline:none}
 .item.confirmar{background:var(--acc-bg);border-color:var(--acc);padding:8px 8px 8px 14px;gap:8px}
 .mini.si{background:var(--acc);color:var(--acc-tx);padding:9px 14px;font-size:14.5px}
 .mini.no{background:var(--surf);color:var(--tx2);border:1px solid var(--line);padding:9px 14px;font-size:14.5px}
+/* Confirmar borrar: en rojo */
+.item.confirmar.peligro{background:var(--bad-bg);border-color:var(--bad)}
+.peligro .mini.si,.vaciar-pregunta .mini.si{background:var(--bad);color:var(--surf)}
+.vaciar-pregunta{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;margin:8px 0;padding:8px 10px;border-radius:12px;background:var(--bad-bg);color:var(--tx);font-size:14.5px}
+.vaciar-pregunta span{flex:1 1 auto}
 
 /* ===== Barra de abajo: sin huecos con los botones del teléfono y oculta mientras se escribe ===== */
 nav.tabs{transform:translateZ(0);-webkit-backface-visibility:hidden}

@@ -42,6 +42,7 @@ function fallo(err) { console.error(err); toast(D.mensajeError(err)); }
 function mensaje(id, txt, info = false) { const m = $(id); m.textContent = txt || ''; m.hidden = !txt; m.classList.toggle('info', info); }
 
 const nombreDe = (uid) => S.miembros.find((m) => m.user_id === uid)?.nombre || 'Alguien';
+const nombresCasa = () => S.miembros.map((m) => m.nombre);
 const miNombre = () => S.miembros.find((m) => m.user_id === S.yo)?.nombre || '';
 const deOtro = (fila) => fila.creado_por && fila.creado_por !== S.yo;
 
@@ -256,11 +257,8 @@ async function quitar(tipo, filas, texto) {
   pintar();
   try {
     await D.borrar(tipo, [...ids]);
-    toast(texto, { texto: 'Deshacer', fn: () => volverAPoner(tipo, filas) });
+    toast(texto);
   } catch (err) { S[tipo].push(...filas); pintar(); fallo(err); }
-}
-async function volverAPoner(tipo, filas) {
-  try { S[tipo].push(...await D.insertar(tipo, filas)); pintar(); } catch (err) { fallo(err); }
 }
 
 // ===== Pestañas =====
@@ -316,38 +314,39 @@ function meta(...partes) {
   return m;
 }
 
-// ----- Confirmar antes de marcar (compra y tareas) -----
-// Para no marcar algo sin querer, al tocar el círculo se pregunta antes (y se cancela solo a los 5 s)
+// ----- Confirmar antes de marcar o borrar -----
+// Para no marcar ni borrar nada sin querer, primero se pregunta. Lo de marcar se cancela solo a los 5 s;
+// lo de borrar (botón rojo) se queda hasta que se diga Sí o No.
 let confirmarT;
-const claveConfirmar = (tipo, fila) => `${tipo}:${fila.id}`;
-const confirmando = (tipo, fila) => !fila.hecho && S.confirmando === claveConfirmar(tipo, fila);
-function pedirConfirmar(tipo, fila) {
-  const clave = claveConfirmar(tipo, fila);
+const confirmando = (clave) => S.confirmando === clave;
+function pedirConfirmar(clave, solo5s = false) {
   S.confirmando = clave;
   pintar();
   clearTimeout(confirmarT);
-  confirmarT = setTimeout(() => { if (S.confirmando === clave) { S.confirmando = null; pintar(); } }, 5000);
+  if (solo5s) confirmarT = setTimeout(() => { if (S.confirmando === clave) { S.confirmando = null; pintar(); } }, 5000);
 }
-function filaConfirmar(tipo, fila, pregunta, textoSi) {
-  return el('li', { class: 'item confirmar' },
-    el('div', { class: 'cuerpo' }, el('span', { class: 'txt' }, fila.texto), el('span', { class: 'meta' }, pregunta)),
-    el('button', { type: 'button', class: 'mini no', onclick: () => { S.confirmando = null; pintar(); } }, 'No'),
-    el('button', { type: 'button', class: 'mini si', onclick: () => {
-      S.confirmando = null;
-      cambiar(tipo, fila, { hecho: true, hecho_en: new Date().toISOString() });
-    } }, textoSi));
+function noConfirmar() { S.confirmando = null; pintar(); }
+function filaConfirmar(texto, pregunta, textoSi, si, rojo = false) {
+  return el('li', { class: `item confirmar${rojo ? ' peligro' : ''}` },
+    el('div', { class: 'cuerpo' }, el('span', { class: 'txt' }, texto), el('span', { class: 'meta' }, pregunta)),
+    el('button', { type: 'button', class: 'mini no', onclick: noConfirmar }, 'No'),
+    el('button', { type: 'button', class: 'mini si', onclick: () => { S.confirmando = null; si(); } }, textoSi));
 }
+const marcarHecho = (tipo, fila) => () => cambiar(tipo, fila, { hecho: true, hecho_en: new Date().toISOString() });
+const filaBorrar = (tipo, fila, texto, aviso) =>
+  filaConfirmar(texto, '¿Seguro que quieres borrarlo?', 'Sí, borrar', () => quitar(tipo, fila, aviso), true);
 
 // ----- Compra -----
 function itemCompra(c, conLista = true) {
   const hoy = L.hoyISO();
-  if (confirmando('compra', c)) return filaConfirmar('compra', c, '¿Ya está comprado?', 'Sí, comprado');
+  if (!c.hecho && confirmando(`hecho:${c.id}`)) return filaConfirmar(c.texto, '¿Ya está comprado?', 'Sí, comprado', marcarHecho('compra', c));
+  if (confirmando(`borrar:${c.id}`)) return filaBorrar('compra', c, c.texto, `«${c.texto}» borrado`);
   return el('li', { class: `item${c.hecho ? ' hecho' : ''}` },
     check(c.hecho, c.hecho ? 'Volver a la lista' : 'Marcar como comprado',
-      () => (c.hecho ? cambiar('compra', c, { hecho: false, hecho_en: null }) : pedirConfirmar('compra', c))),
+      () => (c.hecho ? cambiar('compra', c, { hecho: false, hecho_en: null }) : pedirConfirmar(`hecho:${c.id}`, true))),
     el('div', { class: 'cuerpo' }, el('span', { class: 'txt' }, c.texto),
       meta(conLista && c.lista, !c.hecho && c.fecha_limite && plazo(c.fecha_limite, hoy), deOtro(c) && nombreDe(c.creado_por))),
-    borrarBtn('Borrar', () => quitar('compra', c, `«${c.texto}» borrado`)));
+    borrarBtn('Borrar', () => pedirConfirmar(`borrar:${c.id}`)));
 }
 
 function pintarCompra() {
@@ -381,12 +380,14 @@ function pintarCompra() {
   det.hidden = !hechos.length;
   det.querySelector('summary span').textContent = hechos.length;
   det.querySelector('ul').replaceChildren(...hechos.map((c) => itemCompra(c, S.filtro === 'Todas')));
+  $('c-vaciar').hidden = confirmando('vaciar:compra');
+  $('c-vaciar-pregunta').hidden = !confirmando('vaciar:compra');
 }
 
 $('f-compra').addEventListener('submit', async (e) => {
   e.preventDefault();
   const inp = $('c-texto'), texto = inp.value;
-  const textos = texto.split(/[,\n]/).map((t) => L.mayuscula(t.trim())).filter(Boolean);
+  const textos = texto.split(/[,\n]/).map((t) => L.mayuscula(t.trim(), nombresCasa())).filter(Boolean);
   if (!textos.length) return;
   const lista = $('c-lista').value;
   inp.value = '';
@@ -397,22 +398,27 @@ $('f-compra').addEventListener('submit', async (e) => {
   } catch (err) { inp.value = texto; fallo(err); }
 });
 
-$('c-vaciar').addEventListener('click', () => {
+$('c-vaciar').addEventListener('click', () => pedirConfirmar('vaciar:compra'));
+$('c-vaciar-no').addEventListener('click', noConfirmar);
+$('c-vaciar-si').addEventListener('click', () => {
+  S.confirmando = null;
   const hechos = S.compra.filter((c) => c.hecho && (S.filtro === 'Todas' || c.lista === S.filtro));
   if (hechos.length) quitar('compra', hechos, `${hechos.length} ${hechos.length === 1 ? 'cosa borrada' : 'cosas borradas'}`);
+  else pintar();
 });
 
 // ----- Tareas -----
 function itemTarea(t) {
   const hoy = L.hoyISO();
   const para = t.para ? (t.para === S.yo ? 'Para ti' : `Para ${nombreDe(t.para)}`) : null;
-  if (confirmando('tareas', t)) return filaConfirmar('tareas', t, '¿Ya está hecha?', 'Sí, hecha');
+  if (!t.hecho && confirmando(`hecho:${t.id}`)) return filaConfirmar(t.texto, '¿Ya está hecha?', 'Sí, hecha', marcarHecho('tareas', t));
+  if (confirmando(`borrar:${t.id}`)) return filaBorrar('tareas', t, t.texto, `«${t.texto}» borrada`);
   return el('li', { class: `item${t.hecho ? ' hecho' : ''}` },
     check(t.hecho, t.hecho ? 'Marcar como pendiente' : 'Marcar como hecha',
-      () => (t.hecho ? cambiar('tareas', t, { hecho: false, hecho_en: null }) : pedirConfirmar('tareas', t))),
+      () => (t.hecho ? cambiar('tareas', t, { hecho: false, hecho_en: null }) : pedirConfirmar(`hecho:${t.id}`, true))),
     el('div', { class: 'cuerpo' }, el('span', { class: 'txt' }, t.texto),
       meta(!t.hecho && t.fecha && plazo(t.fecha, hoy), para, deOtro(t) && `Añadida por ${nombreDe(t.creado_por)}`)),
-    borrarBtn('Borrar', () => quitar('tareas', t, `«${t.texto}» borrada`)));
+    borrarBtn('Borrar', () => pedirConfirmar(`borrar:${t.id}`)));
 }
 
 function pintarTareas() {
@@ -429,11 +435,13 @@ function pintarTareas() {
   det.hidden = !hechas.length;
   det.querySelector('summary span').textContent = hechas.length;
   det.querySelector('ul').replaceChildren(...hechas.map(itemTarea));
+  $('t-vaciar').hidden = confirmando('vaciar:tareas');
+  $('t-vaciar-pregunta').hidden = !confirmando('vaciar:tareas');
 }
 
 $('f-tarea').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const inp = $('t-texto'), texto = L.mayuscula(inp.value.trim());
+  const inp = $('t-texto'), texto = L.mayuscula(inp.value.trim(), nombresCasa());
   if (!texto) return;
   const fila = { hogar_id: S.hogar.id, texto, para: $('t-para').value || null, fecha: $('t-fecha').value || null };
   inp.value = ''; $('t-fecha').value = '';
@@ -441,19 +449,24 @@ $('f-tarea').addEventListener('submit', async (e) => {
   try { S.tareas.push(...await D.insertar('tareas', fila)); pintar(); } catch (err) { inp.value = texto; fallo(err); }
 });
 
-$('t-vaciar').addEventListener('click', () => {
+$('t-vaciar').addEventListener('click', () => pedirConfirmar('vaciar:tareas'));
+$('t-vaciar-no').addEventListener('click', noConfirmar);
+$('t-vaciar-si').addEventListener('click', () => {
+  S.confirmando = null;
   const hechas = S.tareas.filter((t) => t.hecho);
   if (hechas.length) quitar('tareas', hechas, `${hechas.length} ${hechas.length === 1 ? 'tarea borrada' : 'tareas borradas'}`);
+  else pintar();
 });
 
 // ----- Calendario -----
 function itemEvento(ev, conFecha = false) {
   const hoy = L.hoyISO();
   const cuando = conFecha ? `${L.textoFecha(ev.fecha, hoy)}${ev.hora ? ' · ' + L.textoHora(ev.hora) : ''}` : (ev.hora ? L.textoHora(ev.hora) : 'Todo el día');
+  if (confirmando(`borrar:${ev.id}`)) return filaBorrar('eventos', ev, ev.titulo, `«${ev.titulo}» borrado`);
   return el('li', { class: 'item evento' },
     el('span', { class: 'hora' }, cuando),
     el('div', { class: 'cuerpo' }, el('span', { class: 'txt' }, ev.titulo), meta(deOtro(ev) && nombreDe(ev.creado_por))),
-    borrarBtn('Borrar', () => quitar('eventos', ev, `«${ev.titulo}» borrado`)));
+    borrarBtn('Borrar', () => pedirConfirmar(`borrar:${ev.id}`)));
 }
 
 function pintarCalendario() {
@@ -505,7 +518,7 @@ $('cal-hoy').addEventListener('click', () => elegirDia(L.hoyISO()));
 
 $('f-evento').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const inp = $('e-titulo'), titulo = L.mayuscula(inp.value.trim());
+  const inp = $('e-titulo'), titulo = L.mayuscula(inp.value.trim(), nombresCasa());
   if (!titulo) return;
   const fila = { hogar_id: S.hogar.id, titulo, fecha: S.dia, hora: $('e-hora').value || null };
   inp.value = ''; $('e-hora').value = '';
