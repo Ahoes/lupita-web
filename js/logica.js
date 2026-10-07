@@ -1,5 +1,5 @@
 // Lupita · fechas, orden y avisos. Sin acceso al DOM, para poder probarlo con Node.
-export const VERSION = '0.2.6';
+export const VERSION = '0.2.7';
 export const LISTAS = ['Súper', 'Farmacia', 'Casa', 'Otros'];
 const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 export const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
@@ -252,6 +252,30 @@ export function agruparCompra(items) {
 
 export const ordenarEventos = (evs) => [...evs].sort((x, y) =>
   x.fecha !== y.fecha ? (x.fecha < y.fecha ? -1 : 1) : (x.hora || '').localeCompare(y.hora || ''));
+
+// ===== "Voy a comprar" =====
+// Si nadie pulsa "He terminado", deja de contar a las 3 horas
+export const DURACION_COMPRA = 3 * 3600 * 1000;
+export const comprandoAhora = (filas, ahora = new Date()) =>
+  filas.filter((f) => ahora - new Date(f.creado_en) < DURACION_COMPRA);
+
+// Lo comprado desde que empezó y lo que queda en la lista
+export function resumenCompra(compra, desde) {
+  const t = new Date(desde).getTime();
+  const compradas = compra.filter((c) => c.hecho && c.hecho_en && new Date(c.hecho_en).getTime() >= t).length;
+  const quedan = compra.filter((c) => !c.hecho).map((c) => c.texto);
+  return { compradas, quedan, total: compradas + quedan.length };
+}
+
+// "Has comprado 5 cosas · queda 1: Pan" (tu = true) o "Ha comprado..." (otra persona)
+export function textoResumen({ compradas, quedan }, tu = false) {
+  const c = compradas === 0 ? `No ${tu ? 'has' : 'ha'} marcado nada`
+    : `${tu ? 'Has' : 'Ha'} comprado ${compradas} ${compradas === 1 ? 'cosa' : 'cosas'}`;
+  const lista = quedan.length <= 3 ? quedan : [...quedan.slice(0, 3), `${quedan.length - 3} más`];
+  const q = !quedan.length ? 'no queda nada'
+    : `${quedan.length === 1 ? 'queda 1' : `quedan ${quedan.length}`}: ${lista.length > 1 ? `${lista.slice(0, -1).join(', ')} y ${lista.at(-1)}` : lista[0]}`;
+  return `${c} · ${q}`;
+}
 
 export function delDia({ compra = [], tareas = [], eventos = [] }, iso) {
   return {

@@ -7,7 +7,7 @@ import { VAPID_PUBLICA } from './config.js';
 
 const $ = (id) => document.getElementById(id);
 const S = {
-  yo: null, hogar: null, miembros: [], compra: [], tareas: [], eventos: [],
+  yo: null, hogar: null, miembros: [], compra: [], tareas: [], eventos: [], deCompras: [],
   filtro: 'Todas', mes: null, dia: L.hoyISO(), canal: null, confirmando: null,
 };
 
@@ -186,10 +186,12 @@ $('h-salir').addEventListener('click', cerrarSesion);
 
 // ===== Datos =====
 async function cargarTodo(hogarId) {
-  const [hogar, miembros, compra, tareas, eventos] = await Promise.all([
+  const [hogar, miembros, compra, tareas, eventos, deCompras] = await Promise.all([
     D.hogar(hogarId), D.miembros(hogarId), D.cargar('compra'), D.cargar('tareas'), D.cargar('eventos'),
+    // si la base de datos aún no tiene "Voy a comprar", la app sigue funcionando sin ello
+    D.cargar('deCompras').catch(() => []),
   ]);
-  Object.assign(S, { hogar, miembros, compra, tareas, eventos });
+  Object.assign(S, { hogar, miembros, compra, tareas, eventos, deCompras });
 }
 
 const esperas = {};
@@ -204,6 +206,7 @@ function recargar(tipo) {
 }
 
 function alCambio(tipo, p) {
+  if (tipo === 'deCompras') avisarCompra(p);
   recargar(tipo);
   if (p.eventType === 'INSERT' && deOtro(p.new)) avisarNovedad(tipo, p.new);
 }
@@ -220,6 +223,23 @@ function avisarNovedad(tipo, f) {
   if (!titulo) return;
   if (document.visibilityState === 'visible') toast(`${titulo}: ${cuerpo}`);
   else if (!A.pushActivo) A.notificar(titulo, cuerpo, `nuevo:${f.id}`);
+}
+
+// "Ana va a la compra" / "Ana ha terminado la compra" (la notificación push la manda Supabase)
+function avisarCompra(p) {
+  let titulo, cuerpo;
+  if (p.eventType === 'DELETE') {
+    const antes = L.comprandoAhora(S.deCompras).find((f) => f.user_id === p.old?.user_id);
+    if (!antes || antes.user_id === S.yo) return;
+    titulo = `${nombreDe(antes.user_id)} ha terminado la compra`;
+    cuerpo = L.textoResumen(L.resumenCompra(S.compra, antes.creado_en));
+  } else {
+    if (!p.new || p.new.user_id === S.yo || p.new.hogar_id !== S.hogar?.id) return;
+    titulo = `${nombreDe(p.new.user_id)} va a la compra`;
+    cuerpo = '¿Falta algo? Añádelo ahora y le aparecerá al momento.';
+  }
+  if (document.visibilityState === 'visible') toast(`${titulo}. ${cuerpo}`);
+  else if (!A.pushActivo) A.notificar(titulo, cuerpo, 'compra');
 }
 
 // Lo urgente se avisa una vez al día. Con la app a la vista ya se ve en "Para hoy";
@@ -337,19 +357,77 @@ const filaBorrar = (tipo, fila, texto, aviso) =>
   filaConfirmar(texto, '¿Seguro que quieres borrarlo?', 'Sí, borrar', () => quitar(tipo, fila, aviso), true);
 
 // ----- Compra -----
+const miCompra = () => L.comprandoAhora(S.deCompras).find((f) => f.user_id === S.yo);
+const esNuevo = (c) => {
+  const yo = miCompra();
+  return yo && !c.hecho && deOtro(c) && new Date(c.creado_en) >= new Date(yo.creado_en);
+};
+
 function itemCompra(c, conLista = true) {
   const hoy = L.hoyISO();
   if (!c.hecho && confirmando(`hecho:${c.id}`)) return filaConfirmar(c.texto, '¿Ya está comprado?', 'Sí, comprado', marcarHecho('compra', c));
   if (confirmando(`borrar:${c.id}`)) return filaBorrar('compra', c, c.texto, `«${c.texto}» borrado`);
-  return el('li', { class: `item${c.hecho ? ' hecho' : ''}` },
+  const nuevo = esNuevo(c);
+  return el('li', { class: `item${c.hecho ? ' hecho' : ''}${nuevo ? ' nuevo' : ''}` },
     check(c.hecho, c.hecho ? 'Volver a la lista' : 'Marcar como comprado',
       () => (c.hecho ? cambiar('compra', c, { hecho: false, hecho_en: null }) : pedirConfirmar(`hecho:${c.id}`, true))),
     el('div', { class: 'cuerpo' }, el('span', { class: 'txt' }, c.texto),
       meta(conLista && c.lista, !c.hecho && c.fecha_limite && plazo(c.fecha_limite, hoy), deOtro(c) && nombreDe(c.creado_por))),
+    nuevo && el('span', { class: 'etiqueta-nuevo' }, 'Nuevo'),
     borrarBtn('Borrar', () => pedirConfirmar(`borrar:${c.id}`)));
 }
 
+// ----- Voy a comprar -----
+const horaDe = (iso) => new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+function pintarVoy() {
+  const activas = L.comprandoAhora(S.deCompras);
+  const yo = activas.find((f) => f.user_id === S.yo);
+  const otros = activas.filter((f) => f.user_id !== S.yo);
+  const partes = [];
+  for (const o of otros) {
+    const r = L.resumenCompra(S.compra, o.creado_en);
+    partes.push(el('div', { class: 'voy otro' },
+      el('div', { class: 'voy-txt' }, el('b', {}, `${nombreDe(o.user_id)} está de compras`),
+        el('small', {}, `Desde las ${horaDe(o.creado_en)} · lleva ${r.compradas} de ${r.total}. Lo que añadas le llega ya.`))));
+  }
+  if (yo) {
+    const r = L.resumenCompra(S.compra, yo.creado_en);
+    if (confirmando('terminar')) {
+      partes.push(el('div', { class: 'voy mio' },
+        el('div', { class: 'voy-txt' }, el('b', {}, '¿Has terminado la compra?'), el('small', {}, `${L.textoResumen(r, true)}. Lo que queda sigue en la lista.`)),
+        el('div', { class: 'voy-botones' },
+          el('button', { type: 'button', class: 'mini no', onclick: noConfirmar }, 'Sigo comprando'),
+          el('button', { type: 'button', class: 'mini si', onclick: terminarCompra }, 'Sí, he terminado'))));
+    } else {
+      partes.push(el('div', { class: 'voy mio' },
+        el('div', { class: 'voy-txt' }, el('b', {}, 'Estás de compras'),
+          el('small', {}, `Desde las ${horaDe(yo.creado_en)} · llevas ${r.compradas} de ${r.total}`)),
+        el('button', { type: 'button', class: 'mini si', onclick: () => pedirConfirmar('terminar') }, 'He terminado')));
+    }
+  } else if (!otros.length) {
+    const resto = S.miembros.filter((m) => m.user_id !== S.yo).map((m) => m.nombre);
+    partes.push(el('button', { type: 'button', class: 'voy boton', onclick: empezarCompra },
+      el('span', { class: 'voy-txt' }, el('b', {}, 'Voy a comprar'),
+        el('small', {}, resto.length ? `${resto.join(' y ')} lo verá y podrá añadir lo que falte` : 'Avisa a la casa de que sales a comprar'))));
+  }
+  $('c-voy').replaceChildren(...partes);
+}
+async function empezarCompra() {
+  const fila = { user_id: S.yo, hogar_id: S.hogar.id, creado_en: new Date().toISOString() };
+  S.deCompras = [...S.deCompras.filter((f) => f.user_id !== S.yo), fila];
+  pintar();
+  try { await D.empezarCompra(S.yo, S.hogar.id); } catch (err) { S.deCompras = S.deCompras.filter((f) => f !== fila); pintar(); fallo(err); }
+}
+async function terminarCompra() {
+  S.confirmando = null;
+  const antes = S.deCompras;
+  S.deCompras = S.deCompras.filter((f) => f.user_id !== S.yo);
+  pintar();
+  try { await D.terminarCompra(S.yo); toast('Compra terminada. ¡Gracias!'); } catch (err) { S.deCompras = antes; pintar(); fallo(err); }
+}
+
 function pintarCompra() {
+  pintarVoy();
   const sel = $('c-lista');
   if (!sel.options.length) sel.append(...L.LISTAS.map((l) => el('option', { value: l }, l)));
   const pend = S.compra.filter((c) => !c.hecho);

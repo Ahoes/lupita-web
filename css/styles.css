@@ -185,6 +185,20 @@ form.evento > input:focus{border-color:var(--acc);outline:none}
 .item.confirmar{background:var(--acc-bg);border-color:var(--acc);padding:8px 8px 8px 14px;gap:8px}
 .mini.si{background:var(--acc);color:var(--acc-tx);padding:9px 14px;font-size:14.5px}
 .mini.no{background:var(--surf);color:var(--tx2);border:1px solid var(--line);padding:9px 14px;font-size:14.5px}
+/* Voy a comprar */
+.voy{display:flex;align-items:center;flex-wrap:wrap;gap:10px;border-radius:16px;padding:12px 12px 12px 14px;margin-bottom:12px}
+.voy-txt{flex:1 1 180px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.voy-txt b{font-size:16px}
+.voy-txt small{font-size:13.5px;color:var(--tx2)}
+.voy.boton{width:100%;border:0;background:var(--acc);color:var(--acc-tx);text-align:left;font:inherit;padding:14px 16px}
+.voy.boton b{font-size:18px}
+.voy.boton small{color:var(--acc-tx);opacity:.9}
+.voy.mio{background:var(--acc-bg);border:2px solid var(--acc)}
+.voy.otro{background:var(--warn-bg);border:2px solid var(--coral)}
+.voy-botones{display:flex;gap:8px;margin-left:auto}
+.item.nuevo{border:2px solid var(--coral)}
+.etiqueta-nuevo{flex:none;font-size:12px;font-weight:700;color:#fff;background:#c4502f;border-radius:999px;padding:3px 9px}
+
 /* Confirmar borrar: en rojo */
 .item.confirmar.peligro{background:var(--bad-bg);border-color:var(--bad)}
 .peligro .mini.si,.vaciar-pregunta .mini.si{background:var(--bad);color:var(--surf)}
