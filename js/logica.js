@@ -1,5 +1,5 @@
 // Lupita · fechas, orden y avisos. Sin acceso al DOM, para poder probarlo con Node.
-export const VERSION = '0.2.7';
+export const VERSION = '0.2.8';
 export const LISTAS = ['Súper', 'Farmacia', 'Casa', 'Otros'];
 const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 export const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',

@@ -226,11 +226,13 @@ function avisarNovedad(tipo, f) {
 }
 
 // "Ana va a la compra" / "Ana ha terminado la compra" (la notificación push la manda Supabase)
-function avisarCompra(p) {
+async function avisarCompra(p) {
   let titulo, cuerpo;
   if (p.eventType === 'DELETE') {
     const antes = L.comprandoAhora(S.deCompras).find((f) => f.user_id === p.old?.user_id);
     if (!antes || antes.user_id === S.yo) return;
+    // la lista se lee de nuevo, por si lo último que marcó aún no había llegado a este móvil
+    try { S.compra = await D.cargar('compra'); } catch (err) { console.error(err); }
     titulo = `${nombreDe(antes.user_id)} ha terminado la compra`;
     cuerpo = L.textoResumen(L.resumenCompra(S.compra, antes.creado_en));
   } else {
