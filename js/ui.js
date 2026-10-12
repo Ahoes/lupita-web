@@ -313,10 +313,15 @@ function pintar() {
 const ICONO = { compra: '🛒', tarea: '✔', evento: '📅' };
 function pintarHoy() {
   const av = L.avisosPendientes(S, new Date()).filter((a) => a.tipo !== 'pronto');
+  // Lo de hoy (y lo atrasado) arriba; lo de mañana, debajo en "Próximamente"
+  const prox = av.filter((a) => a.estado === 'manana'), hoy = av.filter((a) => a.estado !== 'manana');
   $('hoy').hidden = !av.length;
-  $('hoy-lista').replaceChildren(...av.map((a) => el('li', { class: `e-${a.estado}` },
-    el('span', { class: 'ico', 'aria-hidden': 'true' }, ICONO[a.tipo]),
-    el('span', {}, el('b', {}, a.titulo), el('small', {}, a.cuerpo)))));
+  for (const [id, lista] of [['hoy', hoy], ['prox', prox]]) {
+    $(`${id}-t`).hidden = $(`${id}-lista`).hidden = !lista.length;
+    $(`${id}-lista`).replaceChildren(...lista.map((a) => el('li', { class: `e-${a.estado}` },
+      el('span', { class: 'ico', 'aria-hidden': 'true' }, ICONO[a.tipo]),
+      el('span', {}, el('b', {}, a.titulo), el('small', {}, a.cuerpo)))));
+  }
 }
 
 function check(hecho, etiqueta, onclick) {
