@@ -45,10 +45,10 @@ button:active:not(:disabled){transform:scale(.96)}
 .btn:active:not(:disabled),.voy.boton:active,.dia:active{transform:scale(.98)}
 @media (hover:hover){
   .btn:hover:not(:disabled),.mas:hover,.mini:hover,.voy.boton:hover{filter:brightness(1.06)}
-  .icono:hover,.borrar:hover,.chip:hover,.dia:hover{background-color:var(--surf2)}
+  .icono:hover,.borrar:hover,.editar-btn:hover,.chip:hover,.dia:hover{background-color:var(--surf2)}
   .dia.sel:hover{background-color:var(--acc)}
   .borrar:hover{color:var(--bad)}
-  .cuerpo:hover .txt{color:var(--acc)}
+  .editar-btn:hover{color:var(--acc)}
 }
 button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 
@@ -144,16 +144,14 @@ nav.tabs button[aria-selected="true"]{color:var(--acc)}
 .check[aria-pressed="true"]{background:var(--acc)}
 .check[aria-pressed="true"]::after{content:"";position:absolute;left:8px;top:3px;width:7px;height:13px;border:solid var(--acc-tx);border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
 .cuerpo{flex:1;min-width:0;display:flex;flex-direction:column}
-/* tocar el texto abre la edición */
-button.cuerpo{background:none;border:0;padding:4px 0;text-align:left;font:inherit;color:inherit;border-radius:8px}
-button.cuerpo:active{transform:none;opacity:.6}
 .txt{overflow-wrap:anywhere}
 .meta{font-size:12.5px;color:var(--mut);margin-top:1px}
 .e-vencida{color:var(--bad);font-weight:600}
 .e-hoy,.e-manana{color:var(--warn);font-weight:600}
 .item.hecho .txt{text-decoration:line-through;color:var(--mut)}
-.borrar{flex:none;width:40px;height:40px;border:0;background:none;color:var(--mut);border-radius:10px;padding:0;display:grid;place-items:center}
-.borrar svg{width:19px;height:19px}
+.borrar,.editar-btn{flex:none;width:40px;height:40px;border:0;background:none;color:var(--mut);border-radius:10px;padding:0;display:grid;place-items:center}
+.borrar svg,.editar-btn svg{width:19px;height:19px}
+.editar-btn{margin-right:-6px}
 .vacio{text-align:center;color:var(--mut);font-size:14.5px;padding:18px 0}
 .hechos{margin-top:12px}
 .hechos summary{cursor:pointer;color:var(--tx2);font-size:14.5px;padding:8px 2px;list-style:none}

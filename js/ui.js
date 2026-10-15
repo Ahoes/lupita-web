@@ -353,9 +353,13 @@ function borrarBtn(etiqueta, onclick) {
   b.innerHTML = PAPELERA;
   return b;
 }
-// El texto se toca para editarlo
-function cuerpo(id, ...hijos) {
-  return el('button', { type: 'button', class: 'cuerpo', onclick: () => abrirEdicion(id) }, ...hijos);
+const cuerpo = (...hijos) => el('div', { class: 'cuerpo' }, ...hijos);
+// El lápiz, al lado de la papelera, abre la edición (tocar el texto no hace nada, para no editar sin querer)
+const LAPIZ = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+function editarBtn(id) {
+  const b = el('button', { type: 'button', class: 'editar-btn', 'aria-label': 'Editar', onclick: () => abrirEdicion(id) });
+  b.innerHTML = LAPIZ;
+  return b;
 }
 function plazo(iso, hoy) {
   return el('span', { class: `e-${L.estadoFecha(iso, hoy)}` }, L.textoPlazo(iso, hoy));
@@ -471,9 +475,10 @@ function itemCompra(c, conLista = true) {
   return el('li', { class: `item${c.hecho ? ' hecho' : ''}${nuevo ? ' nuevo' : ''}${entra(c.id)}` },
     check(c.hecho, c.hecho ? 'Volver a la lista' : 'Marcar como comprado',
       () => (c.hecho ? cambiar('compra', c, { hecho: false, hecho_en: null }) : pedirConfirmar(`hecho:${c.id}`, true))),
-    cuerpo(c.id, el('span', { class: 'txt' }, c.texto),
+    cuerpo(el('span', { class: 'txt' }, c.texto),
       meta(conLista && c.lista, !c.hecho && c.fecha_limite && plazo(c.fecha_limite, hoy), deOtro(c) && nombreDe(c.creado_por))),
     nuevo && el('span', { class: 'etiqueta-nuevo' }, 'Nuevo'),
+    editarBtn(c.id),
     borrarBtn('Borrar', () => pedirConfirmar(`borrar:${c.id}`)));
 }
 
@@ -595,8 +600,9 @@ function itemTarea(t) {
   return el('li', { class: `item${t.hecho ? ' hecho' : ''}${entra(t.id)}` },
     check(t.hecho, t.hecho ? 'Marcar como pendiente' : 'Marcar como hecha',
       () => (t.hecho ? cambiar('tareas', t, { hecho: false, hecho_en: null }) : pedirConfirmar(`hecho:${t.id}`, true))),
-    cuerpo(t.id, el('span', { class: 'txt' }, t.texto),
+    cuerpo(el('span', { class: 'txt' }, t.texto),
       meta(!t.hecho && t.fecha && plazo(t.fecha, hoy), para, deOtro(t) && `Añadida por ${nombreDe(t.creado_por)}`)),
+    editarBtn(t.id),
     borrarBtn('Borrar', () => pedirConfirmar(`borrar:${t.id}`)));
 }
 
@@ -645,7 +651,8 @@ function itemEvento(ev, conFecha = false) {
   if (S.editando === ev.id) return filaEditar('eventos', ev);
   return el('li', { class: `item evento${entra(ev.id)}` },
     el('span', { class: 'hora' }, cuando),
-    cuerpo(ev.id, el('span', { class: 'txt' }, ev.titulo), meta(deOtro(ev) && nombreDe(ev.creado_por))),
+    cuerpo(el('span', { class: 'txt' }, ev.titulo), meta(deOtro(ev) && nombreDe(ev.creado_por))),
+    editarBtn(ev.id),
     borrarBtn('Borrar', () => pedirConfirmar(`borrar:${ev.id}`)));
 }
 
