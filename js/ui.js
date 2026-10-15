@@ -318,7 +318,23 @@ function irA(t) {
   document.querySelectorAll('nav.tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.t === t)));
   document.querySelectorAll('section.tab').forEach((s) => s.classList.toggle('on', s.id === `t-${t}`));
   try { localStorage.setItem('fam-tab', t); } catch (e) { /* sin almacenamiento */ }
+  ponerTitulo();
   window.scrollTo(0, 0);
+}
+// Arriba, en grande: en la compra el día de hoy; en las demás pestañas, su nombre
+function ponerTitulo() {
+  const t = document.querySelector('nav.tabs button[aria-selected="true"]')?.dataset.t || 'compra';
+  const d = new Date();
+  const dia = d.toLocaleDateString('es-ES', { weekday: 'long' });
+  const pend = S.tareas.filter((x) => !x.hecho).length;
+  const [titulo, sub] = {
+    compra: [dia.charAt(0).toUpperCase() + dia.slice(1), `${d.getDate()} de ${L.MESES[d.getMonth()]}`],
+    menu: ['Menú', 'de la semana'],
+    tareas: ['Tareas', pend ? `${pend} ${pend === 1 ? 'pendiente' : 'pendientes'}` : 'Todo hecho'],
+    cal: ['Calendario', 'citas y fechas'],
+  }[t];
+  $('titulo').firstChild.textContent = titulo;
+  $('subtitulo').textContent = sub;
 }
 document.querySelectorAll('nav.tabs button').forEach((b) => b.addEventListener('click', () => irA(b.dataset.t)));
 try { const t = localStorage.getItem('fam-tab'); if (t) irA(t); } catch (e) { /* sin almacenamiento */ }
@@ -334,6 +350,7 @@ function pintar() {
 let vistos = null;
 const entra = (id) => (vistos && !vistos.has(id) ? ' entra' : '');
 function pintarYa() {
+  ponerTitulo();
   pintarHoy();
   pintarCompra();
   pintarTareas();
@@ -351,7 +368,6 @@ function pintarYa() {
   vistos = new Set([...S.compra, ...S.tareas, ...S.eventos, ...S.menu].map((f) => f.id));
 }
 
-const ICONO = { compra: '🛒', tarea: '✔', evento: '📅' };
 function pintarHoy() {
   const av = L.avisosPendientes(S, new Date()).filter((a) => a.tipo !== 'pronto');
   // Lo de hoy (y lo atrasado) arriba; lo de mañana, debajo en "Próximamente"
@@ -360,7 +376,8 @@ function pintarHoy() {
   for (const [id, lista] of [['hoy', hoy], ['prox', prox]]) {
     $(`${id}-t`).hidden = $(`${id}-lista`).hidden = !lista.length;
     $(`${id}-lista`).replaceChildren(...lista.map((a) => el('li', { class: `e-${a.estado}` },
-      el('span', { class: 'ico', 'aria-hidden': 'true' }, ICONO[a.tipo]),
+      // un punto: rojo si es de hoy o está atrasado
+      el('span', { class: 'ico', 'aria-hidden': 'true' }),
       el('span', {}, el('b', {}, a.titulo), el('small', {}, a.cuerpo)))));
   }
 }
@@ -713,12 +730,37 @@ function pintarMenu() {
   $('m-quienes').replaceChildren(...botonesQuienes(S.mQuienes, () => { S.mQuienesTocado = true; }));
 
   const dias = L.agruparMenu(S.menu, S.semana);
+  const conAlgo = new Set(dias.map((d) => d.dia));
+  const hoyDia = S.semana === estaSemana ? L.diaMenu(hoy) : 0;
+  // la tira de los 5 días: los vacíos, apagados; tocar uno con platos lleva a él, uno vacío abre "Añadir plato"
+  $('m-tira').replaceChildren(...L.DIAS_MENU.map((nombre, i) => {
+    const dia = i + 1, fecha = L.deISO(L.sumarDias(S.semana, i));
+    return el('button', { type: 'button', class: [dia === hoyDia ? 'hoy' : '', conAlgo.has(dia) ? '' : 'vacio-dia'].join(' ').trim() || null,
+      'aria-label': `${nombre} ${fecha.getDate()}${conAlgo.has(dia) ? '' : ', sin nada'}`,
+      onclick: () => (conAlgo.has(dia) ? $(`m-d${dia}`).scrollIntoView({ behavior: 'smooth', block: 'start' }) : abrirMenu(dia)) },
+    el('b', {}, String(fecha.getDate())), el('small', {}, nombre.slice(0, 3)), el('i'));
+  }));
+  // cada día con algo: su nombre y una hoja con la comida y la cena
   $('m-dias').replaceChildren(...dias.flatMap((d) => [
-    el('h3', { class: 'dia-menu' }, d.nombre, S.semana === estaSemana && d.dia === L.diaMenu(hoy) ? el('span', { class: 'hoy-et' }, 'Hoy') : null),
-    ...d.momentos.flatMap((m) => [el('p', { class: 'momento' }, m.titulo), el('ul', { class: 'lista' }, m.platos.map(itemMenu))]),
+    el('h3', { class: 'dia-menu', id: `m-d${d.dia}` }, d.nombre, d.dia === hoyDia ? el('span', { class: 'hoy-et' }, 'Hoy') : null),
+    el('ul', { class: 'lista' }, d.momentos.flatMap((m) => [el('li', { class: 'momento' }, m.titulo), ...m.platos.map(itemMenu)])),
   ]));
   $('m-vacio').hidden = dias.length > 0;
 }
+
+// Añadir plato: se abre una hoja desde abajo y se pueden añadir varios seguidos
+function abrirMenu(dia) {
+  if (dia) S.mDia = dia;
+  pintarMenu();
+  $('s-menu').hidden = false;
+  $('m-texto').focus();
+}
+const cerrarMenu = () => { $('s-menu').hidden = true; };
+$('m-abrir').addEventListener('click', () => abrirMenu());
+$('m-cerrar').addEventListener('click', cerrarMenu);
+$('m-listo').addEventListener('click', cerrarMenu);
+$('s-menu').addEventListener('click', (e) => { if (e.target.id === 's-menu') cerrarMenu(); });
+$('s-menu').addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarMenu(); });
 
 $('m-dia').addEventListener('change', (e) => { S.mDia = Number(e.target.value); });
 $('m-ant').addEventListener('click', () => { S.semana = L.sumarDias(S.semana, -7); pintarMenu(); });
@@ -736,7 +778,10 @@ $('f-menu').addEventListener('submit', async (e) => {
     cantidad: cantidad || null, quienes: ordenQuienes(S.mQuienes) };
   inp.value = ''; cant.value = '';
   inp.focus();
-  try { S.menu.push(...await D.insertar('menu', fila)); pintar(); } catch (err) { inp.value = texto; cant.value = cantidad; fallo(err); }
+  try {
+    S.menu.push(...await D.insertar('menu', fila)); pintar();
+    toast(`«${texto}» añadido: ${L.DIAS_MENU[fila.dia - 1].toLowerCase()}, ${fila.momento}`);
+  } catch (err) { inp.value = texto; cant.value = cantidad; fallo(err); }
 });
 
 // ----- Calendario -----

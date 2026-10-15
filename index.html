@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lupita</title>
-<meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#111715" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#eceff0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#151a22" media="(prefers-color-scheme: dark)">
 <meta name="description" content="La lista de la compra, las tareas y el calendario, compartidos en familia.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
@@ -89,7 +89,7 @@
 <section id="v-app" class="vista">
   <header class="top">
     <div class="marca">
-      <h1>Lupita</h1>
+      <div><div class="marca-txt">Lupita</div><h1 id="titulo">Lupita<span id="subtitulo"></span></h1></div>
       <div class="acciones">
         <button id="instalar" class="mini" type="button" hidden>Instalar</button>
         <button id="b-ajustes" class="icono" type="button" aria-label="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
@@ -162,23 +162,17 @@
 
   <!-- Menú de la semana -->
   <section id="t-menu" class="tab">
-    <div class="mes">
-      <button id="m-ant" class="icono" type="button" aria-label="Semana anterior">‹</button>
+    <div class="mes semana-menu">
       <h2 id="m-titulo"></h2>
-      <button id="m-sig" class="icono" type="button" aria-label="Semana siguiente">›</button>
+      <div class="acciones">
+        <button id="m-ant" class="icono" type="button" aria-label="Semana anterior">‹</button>
+        <button id="m-sig" class="icono" type="button" aria-label="Semana siguiente">›</button>
+      </div>
     </div>
-    <form id="f-menu" class="nuevo-menu">
-      <input id="m-texto" placeholder="Comida (pollo, arroz…)" aria-label="Comida" autocomplete="off" maxlength="200" enterkeyhint="next">
-      <input id="m-cant" placeholder="Cantidad" aria-label="Cantidad" autocomplete="off" maxlength="40" enterkeyhint="done">
-      <button class="mas" type="submit" aria-label="Añadir">+</button>
-    </form>
-    <div class="opciones">
-      <label class="pastilla"><span>Día</span><select id="m-dia"></select></label>
-      <div class="seg" id="m-momento" role="group" aria-label="Comida o cena"></div>
-    </div>
-    <div class="quienes" id="m-quienes" role="group" aria-label="Quién come"></div>
+    <div id="m-tira" class="tira" role="group" aria-label="Días de la semana"></div>
+    <button id="m-abrir" class="anadir-plato" type="button"><span aria-hidden="true">+</span> Añadir plato</button>
     <div id="m-dias"></div>
-    <p id="m-vacio" class="vacio" hidden>Nada apuntado esta semana.</p>
+    <p id="m-vacio" class="vacio" hidden>Nada apuntado esta semana. Toca un día o «Añadir plato».</p>
   </section>
 
   <!-- Calendario -->
@@ -228,6 +222,25 @@
   <div class="hoja-in" role="dialog" aria-modal="true" aria-labelledby="aj-titulo">
     <div class="hoja-cab"><h2 id="aj-titulo">Ajustes</h2><button id="aj-cerrar" class="icono" type="button" aria-label="Cerrar">×</button></div>
     <div id="aj-cont"></div>
+  </div>
+</div>
+
+<div id="s-menu" class="hoja" hidden>
+  <div class="hoja-in" role="dialog" aria-modal="true" aria-labelledby="m-hoja-titulo">
+    <div class="hoja-cab"><h2 id="m-hoja-titulo">Añadir plato</h2><button id="m-cerrar" class="icono" type="button" aria-label="Cerrar">×</button></div>
+    <form id="f-menu" class="nuevo-menu">
+      <input id="m-texto" placeholder="Comida (pollo, arroz…)" aria-label="Comida" autocomplete="off" maxlength="200" enterkeyhint="next">
+      <input id="m-cant" placeholder="Cantidad" aria-label="Cantidad" autocomplete="off" maxlength="40" enterkeyhint="done">
+    </form>
+    <div class="opciones">
+      <label class="pastilla"><span>Día</span><select id="m-dia"></select></label>
+      <div class="seg" id="m-momento" role="group" aria-label="Comida o cena"></div>
+    </div>
+    <div class="quienes" id="m-quienes" role="group" aria-label="Quién come"></div>
+    <div class="botones">
+      <button id="m-listo" class="btn sec" type="button">Listo</button>
+      <button id="m-anadir" class="btn" type="submit" form="f-menu">Añadir</button>
+    </div>
   </div>
 </div>
 

@@ -1,9 +1,9 @@
 // Lupita: funcionamiento sin conexión y avisos.
 // Al publicar una versión nueva, cambia el número de VERSION.
-const VERSION = 'lupita-v0.4.1';
+const VERSION = 'lupita-v0.5.0';
 const ARCHIVOS = ['./', './index.html', './manifest.webmanifest', './css/styles.css',
   './js/ui.js', './js/datos.js', './js/logica.js', './js/avisos.js', './js/pwa.js', './js/config.js',
-  './fonts/nunito.woff2',
+  './fonts/nunito.woff2', './fonts/bricolage.woff2',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
