@@ -1,5 +1,5 @@
 // Lupita · fechas, orden y avisos. Sin acceso al DOM, para poder probarlo con Node.
-export const VERSION = '0.3.1';
+export const VERSION = '0.4.0';
 export const LISTAS = ['Súper', 'Farmacia', 'Casa', 'Otros'];
 const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 export const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
@@ -252,6 +252,33 @@ export function agruparCompra(items) {
 
 export const ordenarEventos = (evs) => [...evs].sort((x, y) =>
   x.fecha !== y.fecha ? (x.fecha < y.fecha ? -1 : 1) : (x.hora || '').localeCompare(y.hora || ''));
+
+// ===== Menú de la semana =====
+export const DIAS_MENU = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+export const MOMENTOS = [['comida', 'Comida'], ['cena', 'Cena']];
+// El lunes de la semana de una fecha
+export function lunesDe(iso) { const d = deISO(iso).getDay(); return sumarDias(iso, d === 0 ? -6 : 1 - d); }
+// La semana que se enseña al abrir el menú: la de hoy de lunes a viernes; el fin de semana, la siguiente
+export function semanaMenu(hoy) { const d = deISO(hoy).getDay(); return d === 0 || d === 6 ? sumarDias(lunesDe(hoy), 7) : lunesDe(hoy); }
+// Día del menú de una fecha: 1 = lunes ... 5 = viernes (0 el fin de semana)
+export function diaMenu(iso) { const d = deISO(iso).getDay(); return d >= 1 && d <= 5 ? d : 0; }
+// "19 – 23 de octubre" o "29 de septiembre – 3 de octubre"
+export function textoSemana(lunes) {
+  const a = deISO(lunes), b = deISO(sumarDias(lunes, 4));
+  return a.getMonth() === b.getMonth()
+    ? `${a.getDate()} – ${b.getDate()} de ${MESES[b.getMonth()]}`
+    : `${a.getDate()} de ${MESES[a.getMonth()]} – ${b.getDate()} de ${MESES[b.getMonth()]}`;
+}
+// Platos de una semana por día y por comida/cena; solo los días y momentos que tienen algo
+export function agruparMenu(filas, semana) {
+  const deSemana = filas.filter((f) => f.semana === semana)
+    .sort((x, y) => String(x.creado_en).localeCompare(String(y.creado_en)));
+  return DIAS_MENU.map((nombre, i) => ({
+    dia: i + 1, nombre,
+    momentos: MOMENTOS.map(([clave, titulo]) => ({ clave, titulo, platos: deSemana.filter((f) => f.dia === i + 1 && f.momento === clave) }))
+      .filter((m) => m.platos.length),
+  })).filter((d) => d.momentos.length);
+}
 
 // ===== "Voy a comprar" =====
 // Si nadie pulsa "He terminado", deja de contar a las 3 horas

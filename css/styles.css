@@ -7,6 +7,7 @@
   --acc:#2a9d8f; --acc-tx:#ffffff; --acc-bg:#e2f2ef;
   --warn:#b86e0b; --warn-bg:#fcefd8; --bad:#cc3f52; --bad-bg:#fbe4e7; --coral:#e76f51;
   --nuevo-bg:#c4502f; --nuevo-tx:#ffffff; --sombra:rgba(35,48,45,.22); --velo:rgba(23,33,31,.45); --hueso:#e6dfd2;
+  --peque-tx:#86468b; --peque-bg:#f4e7f5;
   --sans:"Nunito", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --nav-h:62px;
   color-scheme:light;
@@ -18,6 +19,7 @@
     --acc:#3fb8a8; --acc-tx:#0b1514; --acc-bg:#15302c;
     --warn:#e3a44a; --warn-bg:#2e2414; --bad:#ec7483; --bad-bg:#341a1f;
     --nuevo-bg:#e8826a; --nuevo-tx:#1c0f0b; --sombra:rgba(0,0,0,.5); --velo:rgba(0,0,0,.55); --hueso:#222b29;
+    --peque-tx:#dba6df; --peque-bg:#33213a;
     color-scheme:dark;
   }
 }
@@ -27,6 +29,7 @@
   --acc:#3fb8a8; --acc-tx:#0b1514; --acc-bg:#15302c;
   --warn:#e3a44a; --warn-bg:#2e2414; --bad:#ec7483; --bad-bg:#341a1f;
     --nuevo-bg:#e8826a; --nuevo-tx:#1c0f0b; --sombra:rgba(0,0,0,.5); --velo:rgba(0,0,0,.55); --hueso:#222b29;
+    --peque-tx:#dba6df; --peque-bg:#33213a;
   color-scheme:dark;
 }
 *,*::before,*::after{box-sizing:border-box}
@@ -99,7 +102,7 @@ header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding:12px 0 8
 section.tab{display:none;padding-top:8px}
 section.tab.on{display:block}
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surf);border-top:1px solid var(--line);
-  display:grid;grid-template-columns:repeat(3,1fr);padding:0 max(8px,calc((100% - 560px)/2)) env(safe-area-inset-bottom,0px)}
+  display:grid;grid-template-columns:repeat(4,1fr);padding:0 max(8px,calc((100% - 560px)/2)) env(safe-area-inset-bottom,0px)}
 nav.tabs button{position:relative;background:none;border:0;height:var(--nav-h);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--mut);font-size:12px;font-weight:500}
 nav.tabs svg{width:24px;height:24px}
 nav.tabs button[aria-selected="true"]{color:var(--acc)}
@@ -264,3 +267,31 @@ body.escribiendo .toast{bottom:12px}
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation:none !important;transition:none !important}
 }
+
+/* ===== Menú de la semana ===== */
+.nuevo-menu{display:grid;grid-template-columns:1fr 104px 48px;gap:8px;margin-bottom:8px}
+.nuevo-menu input{min-width:0;font:inherit;font-size:16px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surf);color:var(--tx)}
+.nuevo-menu input:focus{border-color:var(--acc);outline:none}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--surf2);border-radius:999px;padding:3px;gap:3px;flex:1 1 140px}
+.seg button{border:0;border-radius:999px;padding:7px 0;background:none;font-size:14.5px;font-weight:700;color:var(--tx2)}
+.seg button[aria-pressed="true"]{background:var(--surf);color:var(--acc);box-shadow:0 1px 3px var(--sombra)}
+.quienes{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}
+.quienes .chip{font-weight:600}
+.dia-menu{display:flex;align-items:baseline;gap:8px;font-size:17px;font-weight:800;color:var(--tx);margin:18px 4px 8px;border-top:1px solid var(--line);padding-top:14px}
+#m-dias > .dia-menu:first-child{border-top:0;padding-top:0}
+.hoy-et{font-size:12px;font-weight:700;color:var(--acc);background:var(--acc-bg);padding:2px 8px;border-radius:6px}
+.momento{font-size:13.5px;font-weight:700;color:var(--tx2);margin:10px 6px 6px}
+.item.plato{gap:10px;padding:6px 4px 6px 14px}
+.plato .txt{font-size:16.5px;font-weight:600}
+.cant{flex:none;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--acc);background:var(--acc-bg);border-radius:8px;padding:4px 10px;min-width:64px;max-width:40%;text-align:right;overflow-wrap:anywhere}
+.gente{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.gente span{font-size:12.5px;font-weight:600;color:var(--tx2);background:var(--surf2);border-radius:6px;padding:1px 8px}
+.gente span.peque{color:var(--peque-tx);background:var(--peque-bg)}
+.item.editar .quienes{margin:0}
+.item.editar .seg{flex:1 1 170px}
+/* Ajustes: quién come en casa */
+.fila-persona{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:40px;font-size:16px}
+.fila-persona small{color:var(--mut);font-size:13px;margin-left:6px}
+.fila-persona .mini.si{background:var(--bad);color:var(--surf)}
+.bloque .nuevo{margin-top:8px}
+.bloque .nuevo input{background:var(--bg)}

@@ -9,7 +9,8 @@ export const enlaceCaducado = /error_code=otp_expired|error=access_denied/.test(
 
 export const configurado = /^https:\/\//.test(SUPABASE_URL) && SUPABASE_KEY.length > 20;
 export const sb = configurado ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
-export const TABLAS = { compra: 'fam_compra', tareas: 'fam_tareas', eventos: 'fam_eventos', miembros: 'fam_miembros', deCompras: 'fam_de_compras' };
+export const TABLAS = { compra: 'fam_compra', tareas: 'fam_tareas', eventos: 'fam_eventos', miembros: 'fam_miembros', deCompras: 'fam_de_compras',
+  menu: 'fam_menu', comensales: 'fam_comensales' };
 
 const ok = ({ data, error }) => { if (error) throw error; return data; };
 
@@ -47,6 +48,9 @@ export async function cargar(tipo) {
 export const insertar = async (tipo, filas) => ok(await sb.from(TABLAS[tipo]).insert(filas).select());
 export const actualizar = async (tipo, id, cambios) => ok(await sb.from(TABLAS[tipo]).update(cambios).eq('id', id));
 export const borrar = async (tipo, ids) => ok(await sb.from(TABLAS[tipo]).delete().in('id', [].concat(ids)));
+
+// Menú: lo de hace más de 4 semanas ya no se ve y se borra
+export const borrarMenuViejo = async (antesDe) => ok(await sb.from('fam_menu').delete().lt('semana', antesDe));
 
 // "Voy a comprar" / "He terminado"
 export const empezarCompra = async (uid, hogarId) => ok(await sb.from('fam_de_compras')

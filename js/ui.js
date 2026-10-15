@@ -9,6 +9,8 @@ const $ = (id) => document.getElementById(id);
 const S = {
   yo: null, hogar: null, miembros: [], compra: [], tareas: [], eventos: [], deCompras: [],
   filtro: 'Todas', mes: null, dia: L.hoyISO(), canal: null, confirmando: null, editando: null,
+  // menú: platos, personas sin cuenta, semana que se ve (su lunes) y lo elegido para añadir
+  menu: [], comensales: [], semana: null, mDia: null, mMomento: 'comida', mQuienes: null, mQuienesTocado: false,
 };
 
 // ===== Utilidades =====
@@ -43,6 +45,22 @@ function mensaje(id, txt, info = false) { const m = $(id); m.textContent = txt |
 
 const nombreDe = (uid) => S.miembros.find((m) => m.user_id === uid)?.nombre || 'Alguien';
 const nombresCasa = () => S.miembros.map((m) => m.nombre);
+// Quién come en casa: las personas con cuenta y las que solo salen en el menú (por ejemplo, una hija pequeña)
+const personasMenu = () => [
+  ...S.miembros.map((m) => ({ id: m.user_id, nombre: m.nombre, cuenta: true })),
+  ...S.comensales.map((c) => ({ id: c.id, nombre: c.nombre, cuenta: false })),
+];
+const nombresMenu = () => personasMenu().map((p) => p.nombre);
+const ordenQuienes = (set) => personasMenu().map((p) => p.id).filter((id) => set.has(id));
+// Botones con los nombres para elegir quién come (se marcan y desmarcan al tocarlos)
+function botonesQuienes(set, alCambiar) {
+  return personasMenu().map((p) => el('button', { type: 'button', class: 'chip', 'aria-pressed': String(set.has(p.id)),
+    onclick: (e) => {
+      if (set.has(p.id)) set.delete(p.id); else set.add(p.id);
+      e.currentTarget.setAttribute('aria-pressed', String(set.has(p.id)));
+      if (alCambiar) alCambiar();
+    } }, p.nombre));
+}
 const miNombre = () => S.miembros.find((m) => m.user_id === S.yo)?.nombre || '';
 const deOtro = (fila) => fila.creado_por && fila.creado_por !== S.yo;
 
@@ -76,6 +94,8 @@ async function entrarCon(user) {
   D.desuscribir(S.canal);
   S.canal = D.suscribir(S.hogar.id, alCambio);
   revisarAvisos();
+  // el menú de hace más de 4 semanas ya no se ve: se borra
+  D.borrarMenuViejo(L.sumarDias(L.lunesDe(L.hoyISO()), -28)).catch(() => {});
   await mostrarBandaPermiso();
   activarPush();
 }
@@ -187,12 +207,12 @@ $('h-salir').addEventListener('click', cerrarSesion);
 
 // ===== Datos =====
 async function cargarTodo(hogarId) {
-  const [hogar, miembros, compra, tareas, eventos, deCompras] = await Promise.all([
+  const [hogar, miembros, compra, tareas, eventos, deCompras, menu, comensales] = await Promise.all([
     D.hogar(hogarId), D.miembros(hogarId), D.cargar('compra'), D.cargar('tareas'), D.cargar('eventos'),
-    // si la base de datos aún no tiene "Voy a comprar", la app sigue funcionando sin ello
-    D.cargar('deCompras').catch(() => []),
+    // si la base de datos aún no tiene "Voy a comprar" o el menú, la app sigue funcionando sin ello
+    D.cargar('deCompras').catch(() => []), D.cargar('menu').catch(() => []), D.cargar('comensales').catch(() => []),
   ]);
-  Object.assign(S, { hogar, miembros, compra, tareas, eventos, deCompras });
+  Object.assign(S, { hogar, miembros, compra, tareas, eventos, deCompras, menu, comensales });
 }
 
 const esperas = {};
@@ -318,6 +338,7 @@ function pintarYa() {
   pintarCompra();
   pintarTareas();
   pintarCalendario();
+  pintarMenu();
   const hoy = L.hoyISO();
   const nCompra = S.compra.filter((c) => !c.hecho).length;
   const nTareas = S.tareas.filter((t) => !t.hecho).length;
@@ -327,7 +348,7 @@ function pintarYa() {
     $(id).hidden = !n;
   }
   A.ponerContador(nCompra);
-  vistos = new Set([...S.compra, ...S.tareas, ...S.eventos].map((f) => f.id));
+  vistos = new Set([...S.compra, ...S.tareas, ...S.eventos, ...S.menu].map((f) => f.id));
 }
 
 const ICONO = { compra: '🛒', tarea: '✔', evento: '📅' };
@@ -417,21 +438,28 @@ function filaEditar(tipo, fila) {
     'aria-label': tipo === 'eventos' ? 'Título' : 'Texto' });
   const extra = [];
   const pastilla = (etiqueta, control) => { extra.push(el('label', { class: 'pastilla' }, el('span', {}, etiqueta), control)); return control; };
-  let lista, para, fecha, hora;
-  if (tipo === 'compra') {
+  let lista, para, fecha, hora, cant, dia, momento, quienes;
+  let abajo = null;
+  if (tipo === 'menu') {
+    cant = pastilla('Cantidad', el('input', { value: fila.cantidad || '', maxLength: 40, autocomplete: 'off' }));
+    dia = pastilla('Día', el('select', {}, opciones(L.DIAS_MENU.map((d, i) => [String(i + 1), d]), String(fila.dia))));
+    momento = pastilla('Para', el('select', {}, opciones(L.MOMENTOS, fila.momento)));
+    quienes = new Set(fila.quienes || []);
+    abajo = el('div', { class: 'quienes', role: 'group', 'aria-label': 'Quién come' }, botonesQuienes(quienes));
+  } else if (tipo === 'compra') {
     const nombres = L.LISTAS.includes(fila.lista) ? L.LISTAS : [...L.LISTAS, fila.lista];
     lista = pastilla('Lista', el('select', {}, opciones(nombres.map((l) => [l, l]), fila.lista)));
   } else if (tipo === 'tareas') {
     para = pastilla('Para', el('select', {}, opciones([['', 'Cualquiera'],
       ...S.miembros.map((m) => [m.user_id, m.user_id === S.yo ? `${m.nombre} (tú)` : m.nombre])], fila.para || '')));
     fecha = pastilla('Cuándo', el('input', { type: 'date', value: fila.fecha || '' }));
-  } else {
+  } else if (tipo === 'eventos') {
     fecha = pastilla('Día', el('input', { type: 'date', value: fila.fecha, required: true }));
     hora = pastilla('Hora', el('input', { type: 'time', value: fila.hora ? fila.hora.slice(0, 5) : '' }));
   }
   const guardar = (e) => {
     e.preventDefault();
-    const nuevo = L.mayuscula(texto.value.trim(), nombresCasa());
+    const nuevo = L.mayuscula(texto.value.trim(), nombresMenu());
     if (!nuevo) { texto.focus(); return; }
     const cambios = {};
     const poner = (k, v) => { if ((fila[k] ?? null) !== v) cambios[k] = v; };
@@ -444,6 +472,13 @@ function filaEditar(tipo, fila) {
       // la hora se guarda como HH:MM:SS; solo cuenta como cambio si es otra hora
       if ((fila.hora ? fila.hora.slice(0, 5) : '') !== hora.value) cambios.hora = hora.value || null;
     }
+    if (tipo === 'menu') {
+      poner('cantidad', cant.value.trim() || null);
+      poner('dia', Number(dia.value));
+      poner('momento', momento.value);
+      const ids = ordenQuienes(quienes);
+      if (ids.join() !== (fila.quienes || []).join()) cambios.quienes = ids;
+    }
     S.editando = null;
     if (Object.keys(cambios).length) cambiar(tipo, fila, cambios); else pintar();
   };
@@ -451,6 +486,7 @@ function filaEditar(tipo, fila) {
     el('form', { onsubmit: guardar, onkeydown: (e) => { if (e.key === 'Escape') cerrarEdicion(); } },
       texto,
       extra.length ? el('div', { class: 'opciones' }, extra) : null,
+      abajo,
       el('div', { class: 'botones' },
         el('button', { type: 'button', class: 'mini no', onclick: cerrarEdicion }, 'Cancelar'),
         el('button', { type: 'submit', class: 'mini si' }, 'Guardar'))));
@@ -643,6 +679,66 @@ $('t-vaciar-si').addEventListener('click', () => {
   else pintar();
 });
 
+// ----- Menú de la semana -----
+function itemMenu(f) {
+  if (confirmando(`borrar:${f.id}`)) return filaBorrar('menu', f, f.texto, `«${f.texto}» borrado`);
+  if (S.editando === f.id) return filaEditar('menu', f);
+  const porId = new Map(personasMenu().map((p) => [p.id, p]));
+  const gente = (f.quienes || []).map((id) => porId.get(id)).filter(Boolean);
+  return el('li', { class: `item plato${entra(f.id)}` },
+    cuerpo(el('span', { class: 'txt' }, f.texto),
+      gente.length ? el('span', { class: 'gente' }, gente.map((p) => el('span', { class: p.cuenta ? null : 'peque' }, p.nombre))) : null),
+    f.cantidad ? el('span', { class: 'cant' }, f.cantidad) : null,
+    editarBtn(f.id),
+    borrarBtn('Borrar', () => pedirConfirmar(`borrar:${f.id}`)));
+}
+
+function pintarMenu() {
+  const hoy = L.hoyISO(), estaSemana = L.lunesDe(hoy);
+  if (!S.semana) S.semana = L.semanaMenu(hoy);
+  $('m-titulo').textContent = L.textoSemana(S.semana);
+
+  // lo elegido para añadir: el día (hoy si es de lunes a viernes de esta semana), comida o cena y quién come
+  const sel = $('m-dia');
+  if (!sel.options.length) sel.append(...L.DIAS_MENU.map((d, i) => el('option', { value: String(i + 1) }, d)));
+  if (!S.mDia) S.mDia = (S.semana === estaSemana && L.diaMenu(hoy)) || 1;
+  sel.value = String(S.mDia);
+  $('m-momento').replaceChildren(...L.MOMENTOS.map(([clave, titulo]) => el('button', { type: 'button', 'aria-pressed': String(S.mMomento === clave),
+    onclick: () => { S.mMomento = clave; pintarMenu(); } }, titulo)));
+  const ids = new Set(personasMenu().map((p) => p.id));
+  // mientras no se toquen, comen todas las personas con cuenta (también quien se una después);
+  // lo que ya no existe se quita
+  if (!S.mQuienesTocado) S.mQuienes = new Set(S.miembros.map((m) => m.user_id));
+  for (const id of S.mQuienes) if (!ids.has(id)) S.mQuienes.delete(id);
+  $('m-quienes').replaceChildren(...botonesQuienes(S.mQuienes, () => { S.mQuienesTocado = true; }));
+
+  const dias = L.agruparMenu(S.menu, S.semana);
+  $('m-dias').replaceChildren(...dias.flatMap((d) => [
+    el('h3', { class: 'dia-menu' }, d.nombre, S.semana === estaSemana && d.dia === L.diaMenu(hoy) ? el('span', { class: 'hoy-et' }, 'Hoy') : null),
+    ...d.momentos.flatMap((m) => [el('p', { class: 'momento' }, m.titulo), el('ul', { class: 'lista' }, m.platos.map(itemMenu))]),
+  ]));
+  $('m-vacio').hidden = dias.length > 0;
+}
+
+$('m-dia').addEventListener('change', (e) => { S.mDia = Number(e.target.value); });
+$('m-ant').addEventListener('click', () => { S.semana = L.sumarDias(S.semana, -7); pintarMenu(); });
+$('m-sig').addEventListener('click', () => { S.semana = L.sumarDias(S.semana, 7); pintarMenu(); });
+// Intro en la comida pasa a la cantidad (si está vacía); Intro en la cantidad añade
+$('m-texto').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !$('m-cant').value.trim()) { e.preventDefault(); $('m-cant').focus(); }
+});
+$('f-menu').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const inp = $('m-texto'), cant = $('m-cant');
+  const texto = L.mayuscula(inp.value.trim(), nombresMenu()), cantidad = cant.value.trim();
+  if (!texto) { inp.focus(); return; }
+  const fila = { hogar_id: S.hogar.id, semana: S.semana, dia: S.mDia, momento: S.mMomento, texto,
+    cantidad: cantidad || null, quienes: ordenQuienes(S.mQuienes) };
+  inp.value = ''; cant.value = '';
+  inp.focus();
+  try { S.menu.push(...await D.insertar('menu', fila)); pintar(); } catch (err) { inp.value = texto; cant.value = cantidad; fallo(err); }
+});
+
 // ----- Calendario -----
 function itemEvento(ev, conFecha = false) {
   const hoy = L.hoyISO();
@@ -755,6 +851,39 @@ async function compartirCodigo() {
   } catch (e) { /* cancelado */ }
 }
 
+// Quién come en casa: las personas sin cuenta (por ejemplo, una hija pequeña) solo salen en el menú.
+// Quitar a alguien pide confirmación (el botón pasa a "Quitar").
+let quitandoComensal = null;
+function bloqueComensales() {
+  const input = el('input', { placeholder: 'Añadir persona (solo menú)…', 'aria-label': 'Nombre', maxLength: 30, autocomplete: 'off', enterKeyHint: 'done' });
+  const añadir = async (e) => {
+    e.preventDefault();
+    const nombre = L.mayuscula(input.value.trim(), nombresMenu());
+    if (!nombre) { input.focus(); return; }
+    try {
+      S.comensales.push(...await D.insertar('comensales', { hogar_id: S.hogar.id, nombre }));
+      pintar(); abrirAjustes();
+    } catch (err) { fallo(err); }
+  };
+  const quitar = async (c) => {
+    if (quitandoComensal !== c.id) { quitandoComensal = c.id; abrirAjustes(); return; }
+    quitandoComensal = null;
+    try {
+      await D.borrar('comensales', c.id);
+      S.comensales = S.comensales.filter((x) => x.id !== c.id);
+      pintar(); abrirAjustes(); toast(`${c.nombre} ya no sale en el menú`);
+    } catch (err) { fallo(err); }
+  };
+  return el('div', { class: 'bloque' }, el('h3', {}, 'Quién come en casa'),
+    el('p', { class: 'mut' }, 'Para elegir quién come cada plato del menú. Las personas sin cuenta solo salen en el menú.'),
+    S.miembros.map((m) => el('div', { class: 'fila-persona' }, el('span', {}, m.nombre, el('small', {}, 'con cuenta')))),
+    S.comensales.map((c) => el('div', { class: 'fila-persona' }, el('span', {}, c.nombre, el('small', {}, 'solo menú')),
+      quitandoComensal === c.id
+        ? el('button', { type: 'button', class: 'mini si', onclick: () => quitar(c) }, 'Quitar')
+        : borrarBtn(`Quitar a ${c.nombre}`, () => quitar(c)))),
+    el('form', { class: 'nuevo', onsubmit: añadir }, input, el('button', { class: 'mas', type: 'submit', 'aria-label': 'Añadir persona' }, '+')));
+}
+
 async function abrirAjustes() {
   const p = await A.comprobarPermiso();
   $('aj-cont').replaceChildren(
@@ -770,6 +899,7 @@ async function abrirAjustes() {
       el('button', { type: 'button', class: 'btn sec', onclick: compartirCodigo }, 'Enviar el código')),
     el('div', { class: 'bloque' }, el('h3', {}, 'En esta casa'),
       el('ul', { class: 'miembros' }, S.miembros.map((m) => el('li', {}, m.user_id === S.yo ? `${m.nombre} (tú)` : m.nombre)))),
+    bloqueComensales(),
     el('div', { class: 'bloque' }, el('h3', {}, 'Avisos'), el('p', { class: 'mut' }, textoPermiso()),
       p === 'default' ? el('button', { type: 'button', class: 'btn', onclick: activarAvisos }, 'Activar avisos') : null,
       p === 'granted' ? el('button', { type: 'button', class: 'btn sec', onclick: () => A.notificar('Lupita', 'Los avisos funcionan.', 'prueba') }, 'Probar un aviso') : null,
