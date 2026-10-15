@@ -8,7 +8,7 @@ import { VAPID_PUBLICA } from './config.js';
 const $ = (id) => document.getElementById(id);
 const S = {
   yo: null, hogar: null, miembros: [], compra: [], tareas: [], eventos: [], deCompras: [],
-  filtro: 'Todas', mes: null, dia: L.hoyISO(), canal: null, confirmando: null,
+  filtro: 'Todas', mes: null, dia: L.hoyISO(), canal: null, confirmando: null, editando: null,
 };
 
 // ===== Utilidades =====
@@ -72,6 +72,7 @@ async function entrarCon(user) {
   await cargarTodo(m.hogar_id);
   vista('v-app');
   pintar();
+  estadoRed();
   D.desuscribir(S.canal);
   S.canal = D.suscribir(S.hogar.id, alCambio);
   revisarAvisos();
@@ -264,6 +265,15 @@ document.addEventListener('visibilitychange', async () => {
   try { await cargarTodo(S.hogar.id); pintar(); revisarAvisos(); } catch (err) { console.error(err); }
 });
 
+// Sin conexión: se avisa arriba y, al volver, se leen de nuevo los datos
+function estadoRed() { $('sin-red').hidden = navigator.onLine; }
+window.addEventListener('offline', estadoRed);
+window.addEventListener('online', async () => {
+  estadoRed();
+  if (!S.hogar) return;
+  try { await cargarTodo(S.hogar.id); pintar(); } catch (err) { console.error(err); }
+});
+
 // Cambios hechos desde este móvil: se ven al momento y, si falla, se deshacen
 async function cambiar(tipo, fila, cambios) {
   const antes = { ...fila };
@@ -294,7 +304,16 @@ document.querySelectorAll('nav.tabs button').forEach((b) => b.addEventListener('
 try { const t = localStorage.getItem('fam-tab'); if (t) irA(t); } catch (e) { /* sin almacenamiento */ }
 
 // ===== Pintar =====
+// Mientras se edita algo no se vuelve a pintar (se perdería lo que se está escribiendo):
+// se pinta al guardar o cancelar.
 function pintar() {
+  if (S.editando && document.querySelector('.item.editar')) return;
+  pintarYa();
+}
+// Lo que aparece nuevo en la lista entra con una pequeña animación (no al abrir la app)
+let vistos = null;
+const entra = (id) => (vistos && !vistos.has(id) ? ' entra' : '');
+function pintarYa() {
   pintarHoy();
   pintarCompra();
   pintarTareas();
@@ -308,6 +327,7 @@ function pintar() {
     $(id).hidden = !n;
   }
   A.ponerContador(nCompra);
+  vistos = new Set([...S.compra, ...S.tareas, ...S.eventos].map((f) => f.id));
 }
 
 const ICONO = { compra: '🛒', tarea: '✔', evento: '📅' };
@@ -327,8 +347,15 @@ function pintarHoy() {
 function check(hecho, etiqueta, onclick) {
   return el('button', { type: 'button', class: 'check', 'aria-pressed': String(hecho), 'aria-label': etiqueta, onclick });
 }
+const PAPELERA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"/></svg>';
 function borrarBtn(etiqueta, onclick) {
-  return el('button', { type: 'button', class: 'borrar', 'aria-label': etiqueta, onclick }, '×');
+  const b = el('button', { type: 'button', class: 'borrar', 'aria-label': etiqueta, onclick });
+  b.innerHTML = PAPELERA;
+  return b;
+}
+// El texto se toca para editarlo
+function cuerpo(id, ...hijos) {
+  return el('button', { type: 'button', class: 'cuerpo', onclick: () => abrirEdicion(id) }, ...hijos);
 }
 function plazo(iso, hoy) {
   return el('span', { class: `e-${L.estadoFecha(iso, hoy)}` }, L.textoPlazo(iso, hoy));
@@ -348,16 +375,81 @@ let confirmarT;
 const confirmando = (clave) => S.confirmando === clave;
 function pedirConfirmar(clave, solo5s = false) {
   S.confirmando = clave;
+  S.editando = null;
   pintar();
   clearTimeout(confirmarT);
   if (solo5s) confirmarT = setTimeout(() => { if (S.confirmando === clave) { S.confirmando = null; pintar(); } }, 5000);
 }
 function noConfirmar() { S.confirmando = null; pintar(); }
 function filaConfirmar(texto, pregunta, textoSi, si, rojo = false) {
-  return el('li', { class: `item confirmar${rojo ? ' peligro' : ''}` },
+  const li = el('li', { class: `item confirmar${rojo ? ' peligro' : ''}` },
     el('div', { class: 'cuerpo' }, el('span', { class: 'txt' }, texto), el('span', { class: 'meta' }, pregunta)),
     el('button', { type: 'button', class: 'mini no', onclick: noConfirmar }, 'No'),
-    el('button', { type: 'button', class: 'mini si', onclick: () => { S.confirmando = null; si(); } }, textoSi));
+    el('button', { type: 'button', class: 'mini si', onclick: () => {
+      // se va deslizando y después se marca o se borra
+      S.confirmando = null;
+      li.classList.add('sale');
+      li.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+      setTimeout(si, matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 180);
+    } }, textoSi));
+  return li;
+}
+
+// ----- Editar lo apuntado -----
+// Al tocar el texto, la fila se convierte en un pequeño formulario (texto y, según el tipo, lista, persona, fecha u hora).
+function abrirEdicion(id) {
+  S.confirmando = null;
+  S.editando = id;
+  pintarYa();
+  const inp = document.querySelector('section.tab.on .item.editar .txt-edit') || document.querySelector('.item.editar .txt-edit');
+  if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+}
+function cerrarEdicion() { S.editando = null; pintar(); }
+
+const opciones = (pares, valor) => pares.map(([v, t]) => el('option', { value: v, selected: v === valor }, t));
+function filaEditar(tipo, fila) {
+  const campoTexto = tipo === 'eventos' ? 'titulo' : 'texto';
+  const texto = el('input', { class: 'txt-edit', value: fila[campoTexto], maxLength: 200, autocomplete: 'off', enterKeyHint: 'done',
+    'aria-label': tipo === 'eventos' ? 'Título' : 'Texto' });
+  const extra = [];
+  const pastilla = (etiqueta, control) => { extra.push(el('label', { class: 'pastilla' }, el('span', {}, etiqueta), control)); return control; };
+  let lista, para, fecha, hora;
+  if (tipo === 'compra') {
+    const nombres = L.LISTAS.includes(fila.lista) ? L.LISTAS : [...L.LISTAS, fila.lista];
+    lista = pastilla('Lista', el('select', {}, opciones(nombres.map((l) => [l, l]), fila.lista)));
+  } else if (tipo === 'tareas') {
+    para = pastilla('Para', el('select', {}, opciones([['', 'Cualquiera'],
+      ...S.miembros.map((m) => [m.user_id, m.user_id === S.yo ? `${m.nombre} (tú)` : m.nombre])], fila.para || '')));
+    fecha = pastilla('Cuándo', el('input', { type: 'date', value: fila.fecha || '' }));
+  } else {
+    fecha = pastilla('Día', el('input', { type: 'date', value: fila.fecha, required: true }));
+    hora = pastilla('Hora', el('input', { type: 'time', value: fila.hora ? fila.hora.slice(0, 5) : '' }));
+  }
+  const guardar = (e) => {
+    e.preventDefault();
+    const nuevo = L.mayuscula(texto.value.trim(), nombresCasa());
+    if (!nuevo) { texto.focus(); return; }
+    const cambios = {};
+    const poner = (k, v) => { if ((fila[k] ?? null) !== v) cambios[k] = v; };
+    poner(campoTexto, nuevo);
+    if (lista) poner('lista', lista.value);
+    if (para) poner('para', para.value || null);
+    if (tipo === 'tareas') poner('fecha', fecha.value || null);
+    if (tipo === 'eventos') {
+      if (fecha.value) poner('fecha', fecha.value);
+      // la hora se guarda como HH:MM:SS; solo cuenta como cambio si es otra hora
+      if ((fila.hora ? fila.hora.slice(0, 5) : '') !== hora.value) cambios.hora = hora.value || null;
+    }
+    S.editando = null;
+    if (Object.keys(cambios).length) cambiar(tipo, fila, cambios); else pintar();
+  };
+  return el('li', { class: 'item editar' },
+    el('form', { onsubmit: guardar, onkeydown: (e) => { if (e.key === 'Escape') cerrarEdicion(); } },
+      texto,
+      extra.length ? el('div', { class: 'opciones' }, extra) : null,
+      el('div', { class: 'botones' },
+        el('button', { type: 'button', class: 'mini no', onclick: cerrarEdicion }, 'Cancelar'),
+        el('button', { type: 'submit', class: 'mini si' }, 'Guardar'))));
 }
 const marcarHecho = (tipo, fila) => () => cambiar(tipo, fila, { hecho: true, hecho_en: new Date().toISOString() });
 const filaBorrar = (tipo, fila, texto, aviso) =>
@@ -374,11 +466,12 @@ function itemCompra(c, conLista = true) {
   const hoy = L.hoyISO();
   if (!c.hecho && confirmando(`hecho:${c.id}`)) return filaConfirmar(c.texto, '¿Ya está comprado?', 'Sí, comprado', marcarHecho('compra', c));
   if (confirmando(`borrar:${c.id}`)) return filaBorrar('compra', c, c.texto, `«${c.texto}» borrado`);
+  if (S.editando === c.id) return filaEditar('compra', c);
   const nuevo = esNuevo(c);
-  return el('li', { class: `item${c.hecho ? ' hecho' : ''}${nuevo ? ' nuevo' : ''}` },
+  return el('li', { class: `item${c.hecho ? ' hecho' : ''}${nuevo ? ' nuevo' : ''}${entra(c.id)}` },
     check(c.hecho, c.hecho ? 'Volver a la lista' : 'Marcar como comprado',
       () => (c.hecho ? cambiar('compra', c, { hecho: false, hecho_en: null }) : pedirConfirmar(`hecho:${c.id}`, true))),
-    el('div', { class: 'cuerpo' }, el('span', { class: 'txt' }, c.texto),
+    cuerpo(c.id, el('span', { class: 'txt' }, c.texto),
       meta(conLista && c.lista, !c.hecho && c.fecha_limite && plazo(c.fecha_limite, hoy), deOtro(c) && nombreDe(c.creado_por))),
     nuevo && el('span', { class: 'etiqueta-nuevo' }, 'Nuevo'),
     borrarBtn('Borrar', () => pedirConfirmar(`borrar:${c.id}`)));
@@ -498,10 +591,11 @@ function itemTarea(t) {
   const para = t.para ? (t.para === S.yo ? 'Para ti' : `Para ${nombreDe(t.para)}`) : null;
   if (!t.hecho && confirmando(`hecho:${t.id}`)) return filaConfirmar(t.texto, '¿Ya está hecha?', 'Sí, hecha', marcarHecho('tareas', t));
   if (confirmando(`borrar:${t.id}`)) return filaBorrar('tareas', t, t.texto, `«${t.texto}» borrada`);
-  return el('li', { class: `item${t.hecho ? ' hecho' : ''}` },
+  if (S.editando === t.id) return filaEditar('tareas', t);
+  return el('li', { class: `item${t.hecho ? ' hecho' : ''}${entra(t.id)}` },
     check(t.hecho, t.hecho ? 'Marcar como pendiente' : 'Marcar como hecha',
       () => (t.hecho ? cambiar('tareas', t, { hecho: false, hecho_en: null }) : pedirConfirmar(`hecho:${t.id}`, true))),
-    el('div', { class: 'cuerpo' }, el('span', { class: 'txt' }, t.texto),
+    cuerpo(t.id, el('span', { class: 'txt' }, t.texto),
       meta(!t.hecho && t.fecha && plazo(t.fecha, hoy), para, deOtro(t) && `Añadida por ${nombreDe(t.creado_por)}`)),
     borrarBtn('Borrar', () => pedirConfirmar(`borrar:${t.id}`)));
 }
@@ -548,9 +642,10 @@ function itemEvento(ev, conFecha = false) {
   const hoy = L.hoyISO();
   const cuando = conFecha ? `${L.textoFecha(ev.fecha, hoy)}${ev.hora ? ' · ' + L.textoHora(ev.hora) : ''}` : (ev.hora ? L.textoHora(ev.hora) : 'Todo el día');
   if (confirmando(`borrar:${ev.id}`)) return filaBorrar('eventos', ev, ev.titulo, `«${ev.titulo}» borrado`);
-  return el('li', { class: 'item evento' },
+  if (S.editando === ev.id) return filaEditar('eventos', ev);
+  return el('li', { class: `item evento${entra(ev.id)}` },
     el('span', { class: 'hora' }, cuando),
-    el('div', { class: 'cuerpo' }, el('span', { class: 'txt' }, ev.titulo), meta(deOtro(ev) && nombreDe(ev.creado_por))),
+    cuerpo(ev.id, el('span', { class: 'txt' }, ev.titulo), meta(deOtro(ev) && nombreDe(ev.creado_por))),
     borrarBtn('Borrar', () => pedirConfirmar(`borrar:${ev.id}`)));
 }
 

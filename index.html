@@ -21,7 +21,10 @@
 
 <!-- ===== Cargando ===== -->
 <section id="v-cargando" class="vista on">
-  <p class="centro mut" id="cargando-txt">Cargando…</p>
+  <div class="esqueleto" id="esqueleto" aria-hidden="true">
+    <i class="e-titulo"></i><i class="e-caja"></i><i class="e-fila"></i><i class="e-fila"></i><i class="e-fila"></i><i class="e-fila"></i>
+  </div>
+  <p class="centro mut oculto-txt" id="cargando-txt" role="status">Cargando…</p>
 </section>
 
 <!-- ===== Falta configurar ===== -->
@@ -92,6 +95,10 @@
         <button id="b-ajustes" class="icono" type="button" aria-label="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
       </div>
     </div>
+    <div id="sin-red" class="banda sin-red" role="status" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 2l20 20M8.5 16.4a5 5 0 0 1 7 0M5 12.9a10 10 0 0 1 5.2-2.8M19 12.9a10 10 0 0 0-2.3-1.6M2 8.8a15 15 0 0 1 4.2-2.7M22 8.8A15 15 0 0 0 10.7 5M12 20h.01"/></svg>
+      <span>Sin conexión. Lo que añadas o cambies ahora no se guardará hasta que vuelva.</span>
+    </div>
     <div id="aviso-perm" class="banda" hidden>
       <span>¿Te aviso de lo que hay que comprar?</span>
       <button id="b-perm" class="mini" type="button">Activar avisos</button>
@@ -113,7 +120,7 @@
     <div class="opciones">
       <label class="pastilla"><span>Lista</span><select id="c-lista"></select></label>
     </div>
-    <p class="pista">Puedes añadir varias cosas a la vez separándolas con comas.</p>
+    <p class="pista">Puedes añadir varias cosas a la vez separándolas con comas. Toca algo de la lista para cambiarlo.</p>
     <div class="chips" id="c-filtro"></div>
     <ul id="c-pend" class="lista"></ul>
     <p id="c-vacio" class="vacio" hidden>No falta nada por comprar.</p>
@@ -139,6 +146,7 @@
       <label class="pastilla"><span>Para</span><select id="t-para"></select></label>
       <label class="pastilla"><span>Cuándo</span><input type="date" id="t-fecha"></label>
     </div>
+    <p class="pista">Toca una tarea para cambiarla.</p>
     <ul id="t-pend" class="lista"></ul>
     <p id="t-vacio" class="vacio" hidden>No hay tareas pendientes.</p>
     <details id="t-hechas" class="hechos" hidden>
@@ -214,7 +222,11 @@
   // Si en unos segundos no ha arrancado (por ejemplo, sin internet la primera vez), se explica
   setTimeout(function () {
     var v = document.getElementById('v-cargando');
-    if (v && v.classList.contains('on')) document.getElementById('cargando-txt').textContent = 'No se ha podido cargar. Comprueba la conexión y vuelve a abrir la app.';
+    if (!v || !v.classList.contains('on')) return;
+    var t = document.getElementById('cargando-txt');
+    t.textContent = 'No se ha podido cargar. Comprueba la conexión y vuelve a abrir la app.';
+    t.classList.remove('oculto-txt');
+    document.getElementById('esqueleto').hidden = true;
   }, 10000);
 </script>
 <script type="module" src="js/ui.js"></script>
