@@ -1,5 +1,5 @@
 // Lupita · fechas, orden y avisos. Sin acceso al DOM, para poder probarlo con Node.
-export const VERSION = '0.5.0';
+export const VERSION = '0.5.1';
 export const LISTAS = ['Súper', 'Farmacia', 'Casa', 'Otros'];
 const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 export const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
@@ -254,17 +254,17 @@ export const ordenarEventos = (evs) => [...evs].sort((x, y) =>
   x.fecha !== y.fecha ? (x.fecha < y.fecha ? -1 : 1) : (x.hora || '').localeCompare(y.hora || ''));
 
 // ===== Menú de la semana =====
-export const DIAS_MENU = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+export const DIAS_MENU = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 export const MOMENTOS = [['comida', 'Comida'], ['cena', 'Cena']];
 // El lunes de la semana de una fecha
 export function lunesDe(iso) { const d = deISO(iso).getDay(); return sumarDias(iso, d === 0 ? -6 : 1 - d); }
-// La semana que se enseña al abrir el menú: la de hoy de lunes a viernes; el fin de semana, la siguiente
-export function semanaMenu(hoy) { const d = deISO(hoy).getDay(); return d === 0 || d === 6 ? sumarDias(lunesDe(hoy), 7) : lunesDe(hoy); }
-// Día del menú de una fecha: 1 = lunes ... 5 = viernes (0 el fin de semana)
-export function diaMenu(iso) { const d = deISO(iso).getDay(); return d >= 1 && d <= 5 ? d : 0; }
+// La semana que se enseña al abrir el menú: la de hoy (de lunes a domingo)
+export const semanaMenu = (hoy) => lunesDe(hoy);
+// Día del menú de una fecha: 1 = lunes ... 7 = domingo
+export function diaMenu(iso) { const d = deISO(iso).getDay(); return d === 0 ? 7 : d; }
 // "19 – 23 de octubre" o "29 de septiembre – 3 de octubre"
 export function textoSemana(lunes) {
-  const a = deISO(lunes), b = deISO(sumarDias(lunes, 4));
+  const a = deISO(lunes), b = deISO(sumarDias(lunes, 6));
   return a.getMonth() === b.getMonth()
     ? `${a.getDate()} – ${b.getDate()} de ${MESES[b.getMonth()]}`
     : `${a.getDate()} de ${MESES[a.getMonth()]} – ${b.getDate()} de ${MESES[b.getMonth()]}`;

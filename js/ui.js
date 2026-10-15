@@ -295,11 +295,14 @@ window.addEventListener('online', async () => {
 });
 
 // Cambios hechos desde este móvil: se ven al momento y, si falla, se deshacen
-async function cambiar(tipo, fila, cambios) {
+// Cambios que aún se están guardando (para que "He terminado" espere a la última cosa marcada)
+const enCamino = new Set();
+function seguir(promesa) { enCamino.add(promesa); promesa.finally(() => enCamino.delete(promesa)); return promesa; }
+function cambiar(tipo, fila, cambios) {
   const antes = { ...fila };
   Object.assign(fila, cambios);
   pintar();
-  try { await D.actualizar(tipo, fila.id, cambios); } catch (err) { Object.assign(fila, antes); pintar(); fallo(err); }
+  return seguir(D.actualizar(tipo, fila.id, cambios).catch((err) => { Object.assign(fila, antes); pintar(); fallo(err); }));
 }
 
 async function quitar(tipo, filas, texto) {
@@ -432,7 +435,8 @@ function filaConfirmar(texto, pregunta, textoSi, si, rojo = false) {
       S.confirmando = null;
       li.classList.add('sale');
       li.querySelectorAll('button').forEach((b) => { b.disabled = true; });
-      setTimeout(si, matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 180);
+      const espera = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 180;
+      seguir(new Promise((listo) => setTimeout(() => Promise.resolve(si()).finally(listo), espera)));
     } }, textoSi));
   return li;
 }
@@ -581,6 +585,8 @@ async function terminarCompra() {
   const antes = S.deCompras;
   S.deCompras = S.deCompras.filter((f) => f.user_id !== S.yo);
   pintar();
+  // primero se guarda lo último que se marcó; si no, el resumen de la otra persona podría no incluirlo
+  await Promise.allSettled([...enCamino]);
   try { await D.terminarCompra(S.yo); toast('Compra terminada. ¡Gracias!'); } catch (err) { S.deCompras = antes; pintar(); fallo(err); }
 }
 

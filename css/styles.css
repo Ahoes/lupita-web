@@ -12,7 +12,7 @@
   --tx2:#55617a; --mut:#8b94a6;
   --acc:#2f7d5b;      /* albahaca: acciones y hecho */
   --acc-tx:#ffffff; --acc-bg:#e3f1ea;
-  --posit:#ffe27a; --posit-tx:#3b2f00; --posit-sombra:rgba(140,110,0,.22);
+  --posit:#ffe27a; --posit-tx:#3b2f00; --posit-sombra:rgba(140,110,0,.22); --posit-linea:rgba(59,47,0,.13); --posit-margen:rgba(217,67,63,.35);
   --warn:#a86500; --warn-bg:#fff1bf; --bad:#d9433f; --bad-bg:#fbe6e5; --coral:#e0793a;
   --nuevo-bg:#d9433f; --nuevo-tx:#ffffff; --sombra:rgba(31,42,68,.18); --velo:rgba(21,26,34,.45); --hueso:#dde2e6;
   --peque-tx:#a2457f; --peque-bg:#f8e6f1;
@@ -27,7 +27,7 @@
     --bg:#151a22; --surf:#1d2430; --surf2:#232b38; --line:#2b3442;
     --tx:#e8ecf3; --tx2:#aab4c5; --mut:#7c879a;
     --acc:#5cc497; --acc-tx:#0d1f17; --acc-bg:#1d3a30;
-    --posit:#e9c95a; --posit-tx:#2a2100; --posit-sombra:rgba(0,0,0,.5);
+    --posit:#e9c95a; --posit-tx:#2a2100; --posit-sombra:rgba(0,0,0,.5); --posit-linea:rgba(42,33,0,.16); --posit-margen:rgba(190,50,45,.45);
     --warn:#e9b949; --warn-bg:#33290f; --bad:#ff6b66; --bad-bg:#3a1f22; --coral:#f0935a;
     --nuevo-bg:#ff6b66; --nuevo-tx:#2a0b0a; --sombra:rgba(0,0,0,.55); --velo:rgba(0,0,0,.6); --hueso:#252d39;
     --peque-tx:#e59ac9; --peque-bg:#3a2233;
@@ -39,7 +39,7 @@
   --bg:#151a22; --surf:#1d2430; --surf2:#232b38; --line:#2b3442;
   --tx:#e8ecf3; --tx2:#aab4c5; --mut:#7c879a;
   --acc:#5cc497; --acc-tx:#0d1f17; --acc-bg:#1d3a30;
-  --posit:#e9c95a; --posit-tx:#2a2100; --posit-sombra:rgba(0,0,0,.5);
+  --posit:#e9c95a; --posit-tx:#2a2100; --posit-sombra:rgba(0,0,0,.5); --posit-linea:rgba(42,33,0,.16); --posit-margen:rgba(190,50,45,.45);
   --warn:#e9b949; --warn-bg:#33290f; --bad:#ff6b66; --bad-bg:#3a1f22; --coral:#f0935a;
   --nuevo-bg:#ff6b66; --nuevo-tx:#2a0b0a; --sombra:rgba(0,0,0,.55); --velo:rgba(0,0,0,.6); --hueso:#252d39;
   --peque-tx:#e59ac9; --peque-bg:#3a2233;
@@ -127,16 +127,21 @@ nav.tabs button[aria-selected="true"]{color:var(--posit-tx);background:var(--pos
 .contador{font-variant-numeric:tabular-nums;position:absolute;top:2px;left:calc(50% + 5px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--nuevo-bg);color:var(--nuevo-tx);font-size:11px;font-weight:800;display:grid;place-items:center}
 
 /* ===== Para hoy: un pósit, lo único que se sale de la línea ===== */
-#hoy{background:var(--posit);color:var(--posit-tx);border-radius:3px 3px 16px 3px;padding:16px 18px 14px;margin:4px 6px 20px 4px;
-  transform:rotate(-1.2deg);box-shadow:0 10px 18px -8px var(--posit-sombra),0 1px 0 rgba(0,0,0,.04)}
-#hoy h3{font-size:19px;font-weight:800;color:var(--posit-tx);margin-bottom:6px}
+#hoy{color:var(--posit-tx);border-radius:4px 4px 16px 4px;padding:14px 18px 14px 22px;margin:4px 0 20px;
+  /* renglones de libreta: una línea cada 28 px, alineada con el texto */
+  background:repeating-linear-gradient(to bottom,transparent 0 27px,var(--posit-linea) 27px 28px) 0 13px / 100% 100% no-repeat,var(--posit);
+  box-shadow:0 10px 18px -8px var(--posit-sombra),0 1px 0 rgba(0,0,0,.04);line-height:28px}
+/* el margen rojo de la libreta */
+#hoy{position:relative}
+#hoy::before{content:"";position:absolute;top:0;bottom:0;left:12px;width:1.5px;background:var(--posit-margen)}
+#hoy h3{font-size:19px;font-weight:800;color:var(--posit-tx);line-height:28px;margin:0}
 #hoy ul{list-style:none;margin:0;padding:0}
-#hoy ul:not([hidden]) + h3{margin-top:12px;font-size:16px;opacity:.8}
-#hoy li{display:flex;gap:10px;padding:4px 0;font-size:15.5px}
-#hoy li .ico{flex:none;width:9px;height:9px;border-radius:50%;background:currentColor;opacity:.5;margin-top:7px}
+#hoy ul:not([hidden]) + h3{margin-top:0;font-size:16px;opacity:.8}
+#hoy li{display:flex;gap:10px;padding:0;font-size:15.5px;line-height:28px}
+#hoy li .ico{flex:none;width:9px;height:9px;border-radius:50%;background:currentColor;opacity:.5;margin-top:10px}
 #hoy li.e-vencida .ico,#hoy li.e-hoy .ico{background:var(--bad);opacity:1}
 #hoy li b{font-weight:700;display:block;color:var(--posit-tx)}
-#hoy li small{font-size:14px;color:var(--posit-tx);opacity:.75}
+#hoy li small{display:block;font-size:14px;line-height:28px;color:var(--posit-tx);opacity:.75}
 #hoy li.e-vencida small{color:var(--bad);opacity:1;font-weight:700}
 
 /* ===== Añadir ===== */
@@ -298,9 +303,9 @@ body.escribiendo .toast{bottom:12px}
 
 /* ===== Menú de la semana ===== */
 .semana-menu h2{font-size:17px}
-.tira{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px}
-.tira button{border:0;background:var(--surf);border-radius:16px;padding:8px 0 9px;text-align:center;color:var(--tx)}
-.tira b{display:block;font:800 19px var(--titulo);font-variant-numeric:tabular-nums}
+.tira{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin-bottom:12px}
+.tira button{border:0;background:var(--surf);border-radius:14px;padding:8px 0 9px;text-align:center;color:var(--tx);min-width:0}
+.tira b{display:block;font:800 18px var(--titulo);font-variant-numeric:tabular-nums}
 .tira small{font-size:12px;font-weight:700;color:var(--mut)}
 .tira i{display:block;width:6px;height:6px;border-radius:50%;background:var(--acc);margin:4px auto 0}
 .tira button.vacio-dia{opacity:.5}
