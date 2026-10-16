@@ -1005,6 +1005,23 @@ function bloqueTema() {
   return el('div', { class: 'bloque' }, el('h3', {}, 'Tema'), el('p', { class: 'mut' }, 'Automático usa el mismo que el móvil.'), seg);
 }
 
+// Recordatorios de las 9:00, 13:30 y 17:30 (con lo de ese día): cada persona decide si los recibe
+function bloqueRecordatorios() {
+  const yo = S.miembros.find((m) => m.user_id === S.yo);
+  const seg = el('div', { class: 'seg', role: 'group', 'aria-label': 'Recordatorios de las 9:00, 13:30 y 17:30' });
+  const pintarSeg = () => seg.replaceChildren(...[[true, 'Sí'], [false, 'No']].map(([v, txt]) =>
+    el('button', { type: 'button', 'aria-pressed': String((yo?.recordatorios !== false) === v), onclick: async () => {
+      if (!yo || (yo.recordatorios !== false) === v) return;
+      const antes = yo.recordatorios;
+      yo.recordatorios = v; pintarSeg();
+      try { await D.cambiarRecordatorios(S.yo, v); toast(v ? 'Recordatorios encendidos' : 'Recordatorios apagados'); }
+      catch (err) { yo.recordatorios = antes; pintarSeg(); fallo(err); }
+    } }, txt)));
+  pintarSeg();
+  return el('div', { class: 'recordatorios' },
+    el('p', { class: 'mut' }, 'Recordatorios a las 9:00, 13:30 y 17:30 con lo de ese día'), seg);
+}
+
 async function abrirAjustes() {
   const p = await A.comprobarPermiso();
   $('aj-cont').replaceChildren(
@@ -1026,8 +1043,9 @@ async function abrirAjustes() {
       p === 'default' ? el('button', { type: 'button', class: 'btn', onclick: activarAvisos }, 'Activar avisos') : null,
       p === 'granted' ? el('button', { type: 'button', class: 'btn sec', onclick: () => A.notificar('Lupita', 'Los avisos funcionan.', 'prueba') }, 'Probar un aviso') : null,
       el('p', { class: 'pista' }, A.pushActivo
-        ? 'Llegan aunque la app esté cerrada. Recordatorios a las 9:00, 13:30 y 17:30 con lo de ese día.'
-        : 'Ahora mismo solo llegan con la app abierta o en segundo plano.')),
+        ? 'Llegan aunque la app esté cerrada. Las citas con hora se avisan 1 hora antes.'
+        : 'Ahora mismo solo llegan con la app abierta o en segundo plano.'),
+      bloqueRecordatorios()),
     el('button', { type: 'button', class: 'btn peligro', onclick: () => { $('s-ajustes').hidden = true; cerrarSesion(); } }, 'Cerrar sesión'),
     el('p', { class: 'pista centro' }, `Versión ${L.VERSION}`));
   $('s-ajustes').hidden = false;

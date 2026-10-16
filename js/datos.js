@@ -29,11 +29,13 @@ export const cambiarClave = async (password) => ok(await sb.auth.updateUser({ pa
 // ===== Casa =====
 export const miMiembro = async (uid) => ok(await sb.from('fam_miembros').select('*').eq('user_id', uid).maybeSingle());
 export const hogar = async (id) => ok(await sb.from('fam_hogares').select('*').eq('id', id).single());
-export const miembros = async (hogarId) => ok(await sb.from('fam_miembros').select('user_id, nombre')
+export const miembros = async (hogarId) => ok(await sb.from('fam_miembros').select('*')
   .eq('hogar_id', hogarId).order('creado_en'));
 export const crearHogar = async (miNombre) => ok(await sb.rpc('fam_crear_hogar', { mi_nombre: miNombre }));
 export const unirse = async (codigo, miNombre) => ok(await sb.rpc('fam_unirse', { codigo_hogar: codigo, mi_nombre: miNombre }));
 export const cambiarNombre = async (uid, nombre) => ok(await sb.from('fam_miembros').update({ nombre }).eq('user_id', uid));
+// Recordatorios de las 9:00, 13:30 y 17:30: cada persona los enciende o apaga para sí
+export const cambiarRecordatorios = async (uid, si) => ok(await sb.from('fam_miembros').update({ recordatorios: si }).eq('user_id', uid));
 
 // ===== Avisos push: qué móviles los reciben =====
 export const guardarSuscripcion = async (fila) => ok(await sb.from('fam_suscripciones').upsert(fila, { onConflict: 'endpoint' }));

@@ -355,3 +355,5 @@ body.escribiendo .toast{bottom:12px}
 .fila-persona small{color:var(--mut);font-size:13px;font-weight:500;margin-left:6px}
 .fila-persona .mini.si{background:var(--bad);color:#fff}
 .bloque .nuevo{margin-top:8px}
+.recordatorios{margin-top:14px}
+.recordatorios p{margin:0 0 8px}
