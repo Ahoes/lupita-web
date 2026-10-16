@@ -935,6 +935,24 @@ function bloqueComensales() {
     el('form', { class: 'nuevo', onsubmit: añadir }, input, el('button', { class: 'mas', type: 'submit', 'aria-label': 'Añadir persona' }, '+')));
 }
 
+// Tema: automático (sigue al móvil), claro u oscuro. Se recuerda en este móvil.
+function temaGuardado() { try { return localStorage.getItem('fam-tema') || 'auto'; } catch (e) { return 'auto'; } }
+function ponerTema(t) {
+  try { if (t === 'auto') localStorage.removeItem('fam-tema'); else localStorage.setItem('fam-tema', t); } catch (e) { /* sin almacenamiento */ }
+  if (t === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
+    const oscuro = t === 'dark' || (t === 'auto' && m.media.includes('dark'));
+    m.content = oscuro ? '#151a22' : '#eceff0';
+  });
+}
+function bloqueTema() {
+  const seg = el('div', { class: 'seg tres', role: 'group', 'aria-label': 'Tema' });
+  const pintarSeg = () => seg.replaceChildren(...[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Oscuro']].map(([v, txt]) =>
+    el('button', { type: 'button', 'aria-pressed': String(temaGuardado() === v), onclick: () => { ponerTema(v); pintarSeg(); } }, txt)));
+  pintarSeg();
+  return el('div', { class: 'bloque' }, el('h3', {}, 'Tema'), el('p', { class: 'mut' }, 'Automático usa el mismo que el móvil.'), seg);
+}
+
 async function abrirAjustes() {
   const p = await A.comprobarPermiso();
   $('aj-cont').replaceChildren(
@@ -951,6 +969,7 @@ async function abrirAjustes() {
     el('div', { class: 'bloque' }, el('h3', {}, 'En esta casa'),
       el('ul', { class: 'miembros' }, S.miembros.map((m) => el('li', {}, m.user_id === S.yo ? `${m.nombre} (tú)` : m.nombre)))),
     bloqueComensales(),
+    bloqueTema(),
     el('div', { class: 'bloque' }, el('h3', {}, 'Avisos'), el('p', { class: 'mut' }, textoPermiso()),
       p === 'default' ? el('button', { type: 'button', class: 'btn', onclick: activarAvisos }, 'Activar avisos') : null,
       p === 'granted' ? el('button', { type: 'button', class: 'btn sec', onclick: () => A.notificar('Lupita', 'Los avisos funcionan.', 'prueba') }, 'Probar un aviso') : null,
