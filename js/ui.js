@@ -793,7 +793,9 @@ $('f-menu').addEventListener('submit', async (e) => {
 // ----- Calendario -----
 function itemEvento(ev, conFecha = false) {
   const hoy = L.hoyISO();
-  const cuando = conFecha ? `${L.textoFecha(ev.fecha, hoy)}${ev.hora ? ' · ' + L.textoHora(ev.hora) : ''}` : (ev.hora ? L.textoHora(ev.hora) : 'Todo el día');
+  // la fecha va sola al principio de la línea: con mayúscula ("Mañana · 18:00", "Vie 9 oct")
+  const fecha = conFecha ? L.textoFecha(ev.fecha, hoy) : '';
+  const cuando = conFecha ? `${fecha.charAt(0).toUpperCase() + fecha.slice(1)}${ev.hora ? ' · ' + L.textoHora(ev.hora) : ''}` : (ev.hora ? L.textoHora(ev.hora) : 'Todo el día');
   if (confirmando(`borrar:${ev.id}`)) return filaBorrar('eventos', ev, ev.titulo, `«${ev.titulo}» borrado`);
   if (S.editando === ev.id) return filaEditar('eventos', ev);
   return el('li', { class: `item evento${entra(ev.id)}` },
