@@ -1,5 +1,5 @@
 // Lupita · fechas, orden y avisos. Sin acceso al DOM, para poder probarlo con Node.
-export const VERSION = '0.5.4';
+export const VERSION = '0.6.0';
 export const LISTAS = ['Súper', 'Farmacia', 'Casa', 'Otros'];
 const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 export const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
@@ -349,4 +349,32 @@ export function avisosPendientes({ compra = [], tareas = [], eventos = [] }, aho
     }
   }
   return out;
+}
+
+// ===== Sin conexión =====
+// Los cambios hechos sin conexión esperan en una cola. Al leer los datos de nuevo, lo que aún no se ha subido
+// se vuelve a poner encima, para que no desaparezca de la pantalla mientras tanto.
+export function aplicarCola(estado, cola) {
+  for (const op of cola) {
+    const lista = estado[op.tipo];
+    if (!Array.isArray(lista)) continue;
+    if (op.op === 'insertar') {
+      for (const f of op.locales || op.filas) if (!lista.some((x) => x.id === f.id)) lista.push({ ...f });
+    } else if (op.op === 'actualizar') {
+      const f = lista.find((x) => x.id === op.id);
+      if (f) Object.assign(f, op.cambios);
+    } else if (op.op === 'borrar') {
+      estado[op.tipo] = lista.filter((x) => !op.ids.includes(x.id));
+    }
+  }
+  return estado;
+}
+
+// Texto de la banda de arriba (null: no se enseña)
+export function textoSinRed(pendientes, sinRed) {
+  const n = pendientes === 1 ? '1 cambio' : `${pendientes} cambios`;
+  if (sinRed) return pendientes
+    ? `Sin conexión · ${n} sin subir. Se subirán solos cuando vuelva.`
+    : 'Sin conexión. Lo que apuntes se subirá solo cuando vuelva.';
+  return pendientes ? `Subiendo lo apuntado sin conexión (${n})…` : null;
 }

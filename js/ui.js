@@ -68,7 +68,7 @@ const deOtro = (fila) => fila.creado_por && fila.creado_por !== S.yo;
 async function arrancar() {
   if (!D.configurado) return vista('v-config');
   D.sb.auth.onAuthStateChange((evento) => {
-    if (evento === 'SIGNED_OUT') { D.desuscribir(S.canal); S.canal = null; S.hogar = null; modoLogin('entrar'); vista('v-login'); }
+    if (evento === 'SIGNED_OUT') { D.borrarCopia(); D.desuscribir(S.canal); S.canal = null; S.hogar = null; modoLogin('entrar'); vista('v-login'); }
     if (evento === 'PASSWORD_RECOVERY') vista('v-clave');
   });
   try {
@@ -77,17 +77,42 @@ async function arrancar() {
       modoLogin('olvido');
       mensaje('login-msg', 'El enlace ha caducado o ya se usó. Escribe tu correo y pide otro.');
     }
+    // sin conexión, la sesión puede no poder renovarse: se abre la copia guardada en el móvil
+    if (!data.session && !navigator.onLine && D.leerCopia()?.hogar) { S.conectado = false; return abrirCopia(D.leerCopia()); }
     if (!data.session) return vista('v-login');
     if (D.vieneDeRecuperar) return vista('v-clave');
     await entrarCon(data.session.user);
-  } catch (err) { fallo(err); vista('v-login'); }
+  } catch (err) {
+    if (D.esDeRed(err) && D.leerCopia()?.hogar) { S.conectado = false; return abrirCopia(D.leerCopia()); }
+    fallo(err); vista('v-login');
+  }
+}
+
+// Abre la app con la copia guardada en el móvil y lo que quedó por subir encima
+function abrirCopia(copia) {
+  Object.assign(S, copia);
+  L.aplicarCola(S, D.leerCola());
+  vista('v-app');
+  pintar();
+  estadoRed();
 }
 
 async function entrarCon(user) {
   S.yo = user.id;
-  const m = await D.miMiembro(user.id);
+  // si hay copia en el móvil se enseña ya, sin esperar a internet (y sirve sin conexión)
+  const copia = D.leerCopia();
+  const hayCopia = copia?.yo === user.id && copia.hogar;
+  if (hayCopia) abrirCopia(copia);
+  let m;
+  try {
+    m = await D.conTiempo(D.miMiembro(user.id));
+    if (m) await cargarTodo(m.hogar_id);
+  } catch (err) {
+    if (hayCopia && D.esDeRed(err)) { S.conectado = false; return; }
+    throw err;
+  }
   if (!m) { vista('v-hogar'); $('h-nombre').focus(); return; }
-  await cargarTodo(m.hogar_id);
+  S.conectado = true;
   vista('v-app');
   pintar();
   estadoRed();
@@ -103,6 +128,7 @@ async function entrarCon(user) {
 const activarPush = () => A.activarPush(VAPID_PUBLICA, D.guardarSuscripcion);
 async function cerrarSesion() {
   await A.desactivarPush(D.borrarSuscripcion);
+  D.borrarCopia();
   D.salir();
 }
 
@@ -206,13 +232,21 @@ $('h-unirse').addEventListener('click', () => {
 $('h-salir').addEventListener('click', cerrarSesion);
 
 // ===== Datos =====
+// Se lee todo de nuevo (antes se sube lo que quedó pendiente sin conexión)
 async function cargarTodo(hogarId) {
-  const [hogar, miembros, compra, tareas, eventos, deCompras, menu, comensales] = await Promise.all([
+  if (D.leerCola().length && await D.subirCola()) toast('Algún cambio hecho sin conexión no se pudo guardar.');
+  const [hogar, miembros, compra, tareas, eventos, deCompras, menu, comensales] = await D.conTiempo(Promise.all([
     D.hogar(hogarId), D.miembros(hogarId), D.cargar('compra'), D.cargar('tareas'), D.cargar('eventos'),
     // si la base de datos aún no tiene "Voy a comprar" o el menú, la app sigue funcionando sin ello
     D.cargar('deCompras').catch(() => []), D.cargar('menu').catch(() => []), D.cargar('comensales').catch(() => []),
-  ]);
-  Object.assign(S, { hogar, miembros, compra, tareas, eventos, deCompras, menu, comensales });
+  ]));
+  ponerDatos({ hogar, miembros, compra, tareas, eventos, deCompras, menu, comensales });
+}
+// Lo leído de Supabase, con lo que aún no se ha subido encima; y se guarda la copia para abrir sin conexión
+function ponerDatos(datos) {
+  Object.assign(S, datos);
+  L.aplicarCola(S, D.leerCola());
+  D.guardarCopia(S);
 }
 
 const esperas = {};
@@ -220,7 +254,7 @@ function recargar(tipo) {
   clearTimeout(esperas[tipo]);
   esperas[tipo] = setTimeout(async () => {
     try {
-      S[tipo] = tipo === 'miembros' ? await D.miembros(S.hogar.id) : await D.cargar(tipo);
+      ponerDatos({ [tipo]: tipo === 'miembros' ? await D.miembros(S.hogar.id) : await D.cargar(tipo) });
       pintar();
     } catch (err) { console.error(err); }
   }, 250);
@@ -253,7 +287,7 @@ async function avisarCompra(p) {
     const antes = L.comprandoAhora(S.deCompras).find((f) => f.user_id === p.old?.user_id);
     if (!antes || antes.user_id === S.yo) return;
     // la lista se lee de nuevo, por si lo último que marcó aún no había llegado a este móvil
-    try { S.compra = await D.cargar('compra'); } catch (err) { console.error(err); }
+    try { ponerDatos({ compra: await D.cargar('compra') }); } catch (err) { console.error(err); }
     titulo = `${nombreDe(antes.user_id)} ha terminado la compra`;
     cuerpo = L.textoResumen(L.resumenCompra(S.compra, antes.creado_en));
   } else {
@@ -282,17 +316,31 @@ setInterval(() => { if (S.hogar) { pintar(); revisarAvisos(); } }, 5 * 60 * 1000
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState !== 'visible' || !S.hogar) return;
   mostrarBandaPermiso();
-  try { await cargarTodo(S.hogar.id); pintar(); revisarAvisos(); } catch (err) { console.error(err); }
+  await refrescar();
+  revisarAvisos();
 });
 
-// Sin conexión: se avisa arriba y, al volver, se leen de nuevo los datos
-function estadoRed() { $('sin-red').hidden = navigator.onLine; }
-window.addEventListener('offline', estadoRed);
-window.addEventListener('online', async () => {
-  estadoRed();
+// Sin conexión: se avisa arriba (con lo que falta por subir) y, al volver, se sube y se lee todo de nuevo
+function estadoRed() {
+  const texto = L.textoSinRed(D.leerCola().length, !navigator.onLine);
+  $('sin-red').hidden = !texto;
+  if (texto) $('sin-red').querySelector('span').textContent = texto;
+}
+D.alCambiarCola(estadoRed);
+async function refrescar() {
   if (!S.hogar) return;
-  try { await cargarTodo(S.hogar.id); pintar(); } catch (err) { console.error(err); }
-});
+  try {
+    if (S.conectado !== false) { await cargarTodo(S.hogar.id); pintar(); return; }
+    // se abrió sin conexión: ahora se entra de verdad (sesión, datos y cambios en directo)
+    const { data } = await D.sb.auth.getSession();
+    if (data.session) await entrarCon(data.session.user);
+    else if (navigator.onLine) vista('v-login');
+  } catch (err) { console.error(err); }
+}
+window.addEventListener('offline', estadoRed);
+window.addEventListener('online', () => { estadoRed(); refrescar(); });
+// con cobertura mala el móvil cree que hay conexión pero no contesta: se reintenta cada 20 s
+setInterval(() => { if (S.hogar && navigator.onLine && (D.leerCola().length || S.conectado === false)) refrescar(); }, 20000);
 
 // Cambios hechos desde este móvil: se ven al momento y, si falla, se deshacen
 // Cambios que aún se están guardando (para que "He terminado" espere a la última cosa marcada)
@@ -587,6 +635,7 @@ async function terminarCompra() {
   pintar();
   // primero se guarda lo último que se marcó; si no, el resumen de la otra persona podría no incluirlo
   await Promise.allSettled([...enCamino]);
+  await D.subirCola();
   try { await D.terminarCompra(S.yo); toast('Compra terminada. ¡Gracias!'); } catch (err) { S.deCompras = antes; pintar(); fallo(err); }
 }
 
@@ -635,7 +684,7 @@ $('f-compra').addEventListener('submit', async (e) => {
   inp.value = '';
   inp.focus();
   try {
-    S.compra.push(...await D.insertar('compra', textos.map((t) => ({ hogar_id: S.hogar.id, texto: t, lista }))));
+    S.compra.push(...await D.insertar('compra', textos.map((t) => ({ hogar_id: S.hogar.id, texto: t, lista })), S.yo));
     pintar();
   } catch (err) { inp.value = texto; fallo(err); }
 });
@@ -690,7 +739,7 @@ $('f-tarea').addEventListener('submit', async (e) => {
   const fila = { hogar_id: S.hogar.id, texto, para: $('t-para').value || null, fecha: $('t-fecha').value || null };
   inp.value = ''; $('t-fecha').value = '';
   inp.focus();
-  try { S.tareas.push(...await D.insertar('tareas', fila)); pintar(); } catch (err) { inp.value = texto; fallo(err); }
+  try { S.tareas.push(...await D.insertar('tareas', fila, S.yo)); pintar(); } catch (err) { inp.value = texto; fallo(err); }
 });
 
 $('t-vaciar').addEventListener('click', () => pedirConfirmar('vaciar:tareas'));
@@ -764,7 +813,7 @@ function abrirMenu(dia) {
 const cerrarMenu = () => { $('s-menu').hidden = true; };
 $('m-abrir').addEventListener('click', () => abrirMenu());
 $('m-cerrar').addEventListener('click', cerrarMenu);
-$('m-listo').addEventListener('click', cerrarMenu);
+$('m-cancelar').addEventListener('click', cerrarMenu);
 $('s-menu').addEventListener('click', (e) => { if (e.target.id === 's-menu') cerrarMenu(); });
 $('s-menu').addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarMenu(); });
 
@@ -782,12 +831,13 @@ $('f-menu').addEventListener('submit', async (e) => {
   if (!texto) { inp.focus(); return; }
   const fila = { hogar_id: S.hogar.id, semana: S.semana, dia: S.mDia, momento: S.mMomento, texto,
     cantidad: cantidad || null, quienes: ordenQuienes(S.mQuienes) };
+  // un plato cada vez: al añadirlo se cierra la hoja (si falla, vuelve a abrirse con lo escrito)
   inp.value = ''; cant.value = '';
-  inp.focus();
+  cerrarMenu();
   try {
-    S.menu.push(...await D.insertar('menu', fila)); pintar();
+    S.menu.push(...await D.insertar('menu', fila, S.yo)); pintar();
     toast(`«${texto}» añadido: ${L.DIAS_MENU[fila.dia - 1].toLowerCase()}, ${fila.momento}`);
-  } catch (err) { inp.value = texto; cant.value = cantidad; fallo(err); }
+  } catch (err) { inp.value = texto; cant.value = cantidad; $('s-menu').hidden = false; fallo(err); }
 });
 
 // ----- Calendario -----
@@ -858,7 +908,7 @@ $('f-evento').addEventListener('submit', async (e) => {
   if (!titulo) return;
   const fila = { hogar_id: S.hogar.id, titulo, fecha: S.dia, hora: $('e-hora').value || null };
   inp.value = ''; $('e-hora').value = '';
-  try { S.eventos.push(...await D.insertar('eventos', fila)); pintar(); } catch (err) { inp.value = titulo; fallo(err); }
+  try { S.eventos.push(...await D.insertar('eventos', fila, S.yo)); pintar(); } catch (err) { inp.value = titulo; fallo(err); }
 });
 
 // ===== Avisos: permiso =====
@@ -914,7 +964,7 @@ function bloqueComensales() {
     const nombre = L.mayuscula(input.value.trim(), nombresMenu());
     if (!nombre) { input.focus(); return; }
     try {
-      S.comensales.push(...await D.insertar('comensales', { hogar_id: S.hogar.id, nombre }));
+      S.comensales.push(...await D.insertar('comensales', { hogar_id: S.hogar.id, nombre }, S.yo));
       pintar(); abrirAjustes();
     } catch (err) { fallo(err); }
   };
