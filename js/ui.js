@@ -300,12 +300,12 @@ async function avisarCompra(p) {
 }
 
 // Lo urgente se avisa una vez al día. Con la app a la vista ya se ve en "Para hoy";
-// con la app en segundo plano llega como notificación.
+// con la app en segundo plano llega como notificación, pero solo las tareas y citas de hoy (la compra no).
 function revisarAvisos() {
   if (!S.hogar) return;
   const hoy = L.hoyISO(), visible = document.visibilityState === 'visible';
   for (const a of L.avisosPendientes(S, new Date())) {
-    if (A.yaAvisado(a.clave)) continue;
+    if (a.tipo === 'compra' || a.estado !== 'hoy' || A.yaAvisado(a.clave)) continue;
     if (!visible) { if (!A.pushActivo) A.notificar(a.titulo, a.cuerpo, a.clave); }
     else if (a.tipo === 'pronto') toast(`${a.titulo} · ${a.cuerpo}`);
     A.marcar(a.clave, hoy);
