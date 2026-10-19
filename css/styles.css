@@ -224,7 +224,7 @@ form.evento .pastilla{background:var(--surf2)}
 .hoja-cab .icono{background:var(--surf2)}
 .bloque{border-top:1px solid var(--line);padding:16px 0 6px;margin-top:8px}
 .bloque p{font-size:14px;margin:4px 0 8px}
-.codigo{font:800 32px var(--titulo);letter-spacing:8px;text-align:center;background:var(--posit);color:var(--posit-tx);border-radius:14px;padding:12px 0;margin:8px 0;font-variant-numeric:tabular-nums}
+.codigo{font:800 26px var(--titulo);letter-spacing:3px;text-align:center;background:var(--posit);color:var(--posit-tx);border-radius:14px;padding:12px 0;margin:8px 0;font-variant-numeric:tabular-nums}
 .miembros{margin:6px 0;padding-left:20px}
 .pasos{padding-left:22px;margin:12px 0}
 .pasos li{margin-bottom:8px}

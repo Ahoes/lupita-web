@@ -1,5 +1,6 @@
 // Lupita · lectura y escritura en Supabase
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+// Versión exacta: así no entra sola una versión nueva (o manipulada) de la librería
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 
 // Se mira antes de crear la conexión, porque Supabase borra de la dirección lo que trae el enlace del correo
@@ -32,7 +33,11 @@ export const hogar = async (id) => ok(await sb.from('fam_hogares').select('*').e
 export const miembros = async (hogarId) => ok(await sb.from('fam_miembros').select('*')
   .eq('hogar_id', hogarId).order('creado_en'));
 export const crearHogar = async (miNombre) => ok(await sb.rpc('fam_crear_hogar', { mi_nombre: miNombre }));
-export const unirse = async (codigo, miNombre) => ok(await sb.rpc('fam_unirse', { codigo_hogar: codigo, mi_nombre: miNombre }));
+export const unirse = async (codigo, miNombre) => {
+  const r = ok(await sb.rpc('fam_unirse', { codigo_hogar: codigo, mi_nombre: miNombre }));
+  if (r?.error) throw new Error(r.error); // código equivocado o demasiados intentos
+  return r;
+};
 export const cambiarNombre = async (uid, nombre) => ok(await sb.from('fam_miembros').update({ nombre }).eq('user_id', uid));
 // Recordatorios de las 9:00, 13:30 y 17:30: cada persona los enciende o apaga para sí
 export const cambiarRecordatorios = async (uid, si) => ok(await sb.from('fam_miembros').update({ recordatorios: si }).eq('user_id', uid));

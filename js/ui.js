@@ -225,8 +225,8 @@ $('h-crear').addEventListener('click', async () => {
   if (await accionHogar((n) => D.crearHogar(n))) abrirAjustes();
 });
 $('h-unirse').addEventListener('click', () => {
-  const codigo = $('h-codigo').value.trim().toUpperCase();
-  if (codigo.length !== 6) { mensaje('hogar-msg', 'El código tiene 6 letras o números.'); return; }
+  const codigo = $('h-codigo').value.replace(/[^a-z0-9]/gi, '').toUpperCase();
+  if (codigo.length !== 10) { mensaje('hogar-msg', 'El código tiene 10 letras o números.'); return; }
   accionHogar((n) => D.unirse(codigo, n));
 });
 $('h-salir').addEventListener('click', cerrarSesion);
